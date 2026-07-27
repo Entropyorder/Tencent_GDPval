@@ -32,6 +32,7 @@ GENERATED_EXTENSIONS = {
     "xlsx": ".xlsx",
 }
 ROLES = {"core", "supporting", "purposeful_noise", "generated"}
+ATTACHMENT_PREFIX_PATTERN = re.compile(r"^\d{2}__")
 
 
 def sha256(path: Path) -> str:
@@ -61,6 +62,11 @@ def clean_filename(value: str) -> str:
     if filename.startswith(".") or "\x00" in filename:
         raise ValueError("filename is unsafe")
     return filename
+
+
+def final_attachment_filename(position: int, source_filename: str) -> str:
+    base = ATTACHMENT_PREFIX_PATTERN.sub("", clean_filename(source_filename))
+    return f"{position:02d}__{base}"
 
 
 def task_context(value: str) -> tuple[Path, dict[str, Any]]:
@@ -572,9 +578,6 @@ def assemble(
         raise ValueError("at most 3 generated attachments are allowed")
     if sum(item["role"] == "core" for item in normalized) < 2:
         raise ValueError("the attachment set needs at least 2 core evidence files")
-    if len({item["filename"] for item in normalized}) != len(normalized):
-        raise ValueError("final attachment filenames must be unique")
-
     final_dir = task_dir / "final"
     with mutation_lock(task_dir):
         staging = Path(
@@ -586,17 +589,25 @@ def assemble(
             attachments_dir.mkdir()
             internal_dir.mkdir()
             selection_records = []
-            for item in normalized:
-                source_path = item.pop("source_path")
+            final_filenames = []
+            for position, item in enumerate(normalized, start=1):
+                source_path = item["source_path"]
                 if not source_path.is_file():
                     raise FileNotFoundError(source_path)
-                target = attachments_dir / item["filename"]
+                final_filename = final_attachment_filename(
+                    position,
+                    item["filename"],
+                )
+                final_filenames.append(final_filename)
+                target = attachments_dir / final_filename
                 shutil.copy2(source_path, target)
                 record = {
                     key: value
                     for key, value in item.items()
-                    if key not in {"source_key", "rank"}
+                    if key not in {"source_key", "rank", "source_path", "filename"}
                 }
+                record["source_filename"] = item["filename"]
+                record["filename"] = final_filename
                 record["sha256"] = sha256(target)
                 selection_records.append(record)
 
@@ -633,12 +644,13 @@ def assemble(
         "message": (
             f"Assembled {len(normalized)} final attachments "
             f"({len(normalized) - generated_count} candidate, "
-            f"{generated_count} generated). Now derive and finalize the query."
+            f"{generated_count} generated). Now derive and finalize the "
+            "workflow and query."
         ),
         "details": {
             "attachment_count": len(normalized),
             "generated_count": generated_count,
-            "filenames": [item["filename"] for item in normalized],
+            "filenames": final_filenames,
         },
     }
 
@@ -649,10 +661,13 @@ def finalize(task_dir: Path, manifest: dict[str, Any], params: dict[str, Any]):
     if not selection_path.is_file():
         raise ValueError("assemble_final_attachments must be completed first")
     query = str(params.get("queryMarkdown") or "").strip()
+    workflow = str(params.get("workflowMarkdown") or "").strip()
     evidence = str(params.get("evidenceMatrixMarkdown") or "").strip()
     quality = str(params.get("qualityReviewMarkdown") or "").strip()
-    if len(query) < 800:
+    if len(query) < 500:
         raise ValueError("queryMarkdown is too short for a complex professional task")
+    if len(workflow) < 400:
+        raise ValueError("workflowMarkdown is too short for a 12-step workflow")
     if len(evidence) < 300:
         raise ValueError("evidenceMatrixMarkdown is too short")
     if len(quality) < 300:
@@ -661,6 +676,10 @@ def finalize(task_dir: Path, manifest: dict[str, Any], params: dict[str, Any]):
     with mutation_lock(task_dir):
         write_json(final_dir / "query.json", [{"query": query}])
         (final_dir / "query.md").write_text(query + "\n", encoding="utf-8")
+        (final_dir / "workflow.md").write_text(
+            workflow + "\n",
+            encoding="utf-8",
+        )
         (final_dir / "internal" / "evidence_matrix.md").write_text(
             evidence + "\n", encoding="utf-8"
         )

@@ -6,8 +6,9 @@
 2. 创建相互隔离的任务工作区并抽取候选全文。
 3. 使用 Pi CLI、项目 Skill 和受控自定义工具确定题目方向。
 4. 从20个候选中选择文件，并按需生成0至3个辅助文件。
-5. 固化10至17个最终附件后，反向生成三段式 query。
-6. 生成选择清单、证据矩阵和质量审查，并执行确定性验收。
+5. 固化10至17个最终附件，按最终顺序重新编号。
+6. 反向生成至少12步的 workflow 和整体叙述式三段 query。
+7. 生成选择清单、证据矩阵和质量审查，并执行确定性验收。
 
 本阶段不做 Top 20 检索，也不生成 Golden Solution。
 
@@ -50,8 +51,8 @@ Pi 使用 `--no-builtin-tools`，不能调用通用 shell、write 或 edit。全
 | `search_evidence` | 跨候选搜索证据、口径和冲突 |
 | `set_task_direction` | 保存至少两个方向并确定最终方向 |
 | `create_generated_attachment` | 生成受控的MD/TXT/CSV/XLSX辅助附件 |
-| `assemble_final_attachments` | 复制最终附件、计算哈希并写选择清单 |
-| `finalize_task` | 反向写query和审计材料并运行验收 |
+| `assemble_final_attachments` | 复制并连续编号最终附件、计算哈希并写选择清单 |
+| `finalize_task` | 分别写workflow、query和审计材料并运行验收 |
 
 工具的确定性后端为 `pi_tool_backend.py`。它强制“先方向、再附件、后query”的
 执行顺序，限制候选边界、附件数量、生成文件数量、文件格式和写入目录。
@@ -99,6 +100,7 @@ Pi 使用 `--no-builtin-tools`，不能调用通用 shell、write 或 edit。全
     └── final/
         ├── query.json
         ├── query.md
+        ├── workflow.md          # 至少12个内部工作步骤
         ├── attachments/         # 10至17个最终附件
         └── internal/
             ├── direction_plan.json
@@ -107,9 +109,12 @@ Pi 使用 `--no-builtin-tools`，不能调用通用 shell、write 或 edit。全
             └── quality_review.md
 ```
 
-`query.json` 只包含一条 `query`；`query.md` 与其文本严格一致。题目必须包含
-“任务背景、具体任务、交付要求”三段、至少10个连续步骤，以及1至5个具名
-交付文件。
+`query.json` 只包含一条 `query`；`query.md` 与其文本严格一致。query 必须
+包含“任务背景、具体任务、交付要求”三段，其中“具体任务”是120至320字的
+单一整体叙述段落，不得包含列表、工作步骤或具体方法。详细方法写入
+`workflow.md`，包含
+至少12个连续步骤。最终附件按选择顺序使用 `01__` 至 `NN__` 连续编号，query
+包含1至5个具名交付文件。
 
 单独验收已有任务：
 

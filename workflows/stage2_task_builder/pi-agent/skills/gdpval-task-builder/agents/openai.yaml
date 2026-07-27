@@ -1,4 +1,4 @@
 interface:
   display_name: "GDPval题目构建"
   short_description: "基于二十个金融候选附件反向构建复杂GDPval职业任务"
-  default_prompt: "分析当前20个候选文件，确定题目方向，组装最终附件并反向生成可验收的GDPval query。"
+  default_prompt: "分析当前20个候选文件，确定题目方向，重新编号最终附件，并分别生成至少12步的workflow与整体叙述式GDPval query。"

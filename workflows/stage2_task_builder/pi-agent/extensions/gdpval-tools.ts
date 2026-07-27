@@ -188,7 +188,7 @@ export default function (pi: ExtensionAPI) {
     name: "assemble_final_attachments",
     label: "Assemble Final Attachments",
     description:
-      "根据已选方向，将10至17个候选/生成文件复制到final/attachments，计算哈希并写selection_manifest。调用后才能反向编写query。",
+      "根据已选方向，将10至17个候选/生成文件复制到final/attachments，按最终顺序重新编号为01__至NN__，计算哈希并写selection_manifest。调用后才能反向编写workflow和query。",
     promptSnippet: "固化最终附件集合及选择清单",
     promptGuidelines: [
       "先固化附件再写 query；assemble_final_attachments 会拒绝题目方向之外的候选和未登记生成文件。",
@@ -224,13 +224,14 @@ export default function (pi: ExtensionAPI) {
     name: "finalize_task",
     label: "Finalize Task",
     description:
-      "在最终附件已经固化后，写入反向推导的query.md/query.json、证据矩阵和质量审查，并运行确定性验收。验收通过后终止本次Pi任务。",
-    promptSnippet: "写入反向设计的query并完成确定性验收",
+      "在最终附件已经固化后，写入至少12步的workflow.md、整体叙述式query.md/query.json、证据矩阵和质量审查，并运行确定性验收。验收通过后终止本次Pi任务。",
+    promptSnippet: "写入分离的workflow和query并完成确定性验收",
     promptGuidelines: [
       "必须以 finalize_task 验收通过作为最后一步；不得用自然语言声称完成。",
     ],
     parameters: Type.Object({
-      queryMarkdown: Type.String({ minLength: 800 }),
+      queryMarkdown: Type.String({ minLength: 500 }),
+      workflowMarkdown: Type.String({ minLength: 400 }),
       evidenceMatrixMarkdown: Type.String({ minLength: 300 }),
       qualityReviewMarkdown: Type.String({ minLength: 300 }),
     }),

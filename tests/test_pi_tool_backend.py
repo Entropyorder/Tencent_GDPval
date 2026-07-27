@@ -119,6 +119,29 @@ def make_query():
         "一致、透明、能够由其他分析师复算的决策框架；不能用简单排名代替对"
         "业务模式、财务结构、数据可靠性和风险缓释条件的专业解释。"
     )
+    task_narrative = (
+        "请综合全部材料，对目标组合的经营质量、财务韧性、信用风险及压力环境"
+        "下的风险传导开展系统评估，在妥善处理主体差异、报告期错配、披露口径"
+        "和信息缺口的基础上，形成一套可追溯、可复算且具有专业解释力的分析"
+        "框架。最终判断应能够支持投资委员会进行风险分层、组合限额、观察名单"
+        "和尽调资源配置决策，并清楚区分附件事实、推导结果、任务假设及专业"
+        "判断，为后续独立复核和持续风险监测保留完整依据。"
+    )
+    delivery = (
+        "请提交以下 2 个文件：\n"
+        "1. `信用组合风险评估报告.docx`：呈现口径、证据核对、风险判断、"
+        "情景结果、组合建议和局限性。\n"
+        "2. `信用组合压力测试模型.xlsx`：包含来源索引、标准化数据、计算公式、"
+        "情景参数、敏感性分析、评分结果和质量检查。"
+    )
+    return (
+        f"## 任务背景\n{background}\n\n"
+        f"## 具体任务\n{task_narrative}\n\n"
+        f"## 交付要求\n{delivery}"
+    )
+
+
+def make_workflow():
     tasks = [
         "建立附件索引，识别各主体、报告期、币种、口径和数据来源，并记录缺失项。",
         "设计统一分析口径，将可以比较的利润、现金流、债务和流动性指标映射到标准字段。",
@@ -133,21 +156,10 @@ def make_query():
         "综合基准和压力结果提出组合限额、观察名单、优先尽调事项及触发条件。",
         "执行独立质量检查，确保引用可追溯、公式可复算、结论与附件证据一致。",
     ]
-    task_text = "\n".join(
+    task_text = "\n\n".join(
         f"{index}. {task}" for index, task in enumerate(tasks, start=1)
     )
-    delivery = (
-        "请提交以下 2 个文件：\n"
-        "1. `信用组合风险评估报告.docx`：呈现口径、证据核对、风险判断、"
-        "情景结果、组合建议和局限性。\n"
-        "2. `信用组合压力测试模型.xlsx`：包含来源索引、标准化数据、计算公式、"
-        "情景参数、敏感性分析、评分结果和质量检查。"
-    )
-    return (
-        f"## 任务背景\n{background}\n\n"
-        f"## 具体任务\n{task_text}\n\n"
-        f"## 交付要求\n{delivery}"
-    )
+    return "# 工作流程\n\n" + task_text
 
 
 def test_pi_backend_enforces_order_and_completes_full_workflow(tmp_path):
@@ -208,9 +220,10 @@ def test_pi_backend_enforces_order_and_completes_full_workflow(tmp_path):
     workbook.close()
 
     attachments = []
-    for rank in range(1, 10):
-        role = "core" if rank <= 2 else (
-            "purposeful_noise" if rank == 9 else "supporting"
+    selected_ranks = [3, 5, 7, 9, 10, 11, 12, 1, 2]
+    for position, rank in enumerate(selected_ranks, start=1):
+        role = "core" if position <= 2 else (
+            "purposeful_noise" if position == 9 else "supporting"
         )
         attachments.append(
             {
@@ -235,6 +248,18 @@ def test_pi_backend_enforces_order_and_completes_full_workflow(tmp_path):
     )
     assert assembly["details"]["attachment_count"] == 10
     assert assembly["details"]["generated_count"] == 1
+    assert assembly["details"]["filenames"] == [
+        "01__company_03_report.txt",
+        "02__company_05_report.txt",
+        "03__company_07_report.txt",
+        "04__company_09_report.txt",
+        "05__company_10_report.txt",
+        "06__company_11_report.txt",
+        "07__company_12_report.txt",
+        "08__company_01_report.txt",
+        "09__company_02_report.txt",
+        "10__情景参数.xlsx",
+    ]
 
     evidence = (
         "# 证据矩阵\n\n"
@@ -258,6 +283,7 @@ def test_pi_backend_enforces_order_and_completes_full_workflow(tmp_path):
         task_dir,
         "finalize_task",
         queryMarkdown=make_query(),
+        workflowMarkdown=make_workflow(),
         evidenceMatrixMarkdown=evidence,
         qualityReviewMarkdown=quality,
     )
@@ -268,3 +294,4 @@ def test_pi_backend_enforces_order_and_completes_full_workflow(tmp_path):
     assert result["details"]["workflow_steps"] == 12
     assert result["details"]["deliverable_files"] == 2
     assert (task_dir / "final" / "query.md").is_file()
+    assert (task_dir / "final" / "workflow.md").is_file()
