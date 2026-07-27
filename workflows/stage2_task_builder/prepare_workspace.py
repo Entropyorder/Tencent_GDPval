@@ -188,7 +188,8 @@ def prepare_task(
         f"本工作区只包含查询 {task_id} 对应的 {len(records)} 个候选文件，"
         "不得访问另一道题目的工作区。\n\n"
         "使用十至十七个附件构建一道最终金融题目。可以新增最多三个明确标记的"
-        "生成附件。完成项目 `CLAUDE.md` 要求的全部输出。\n",
+        "生成附件。严格使用 Pi 的 `gdpval-task-builder` Skill 和自定义工具，"
+        "先固化最终附件，再反向编写 query，并完成确定性验收。\n",
         encoding="utf-8",
     )
     return task_dir, len(records)
@@ -196,7 +197,7 @@ def prepare_task(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Prepare isolated Claude Code workspaces from retrieval results."
+        description="Prepare isolated Pi workspaces from retrieval results."
     )
     parser.add_argument(
         "--manifest",

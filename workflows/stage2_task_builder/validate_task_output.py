@@ -178,7 +178,7 @@ def validate_task(task_dir):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Validate Claude-generated finance task deliverables."
+        description="Validate Stage 2 finance task deliverables."
     )
     parser.add_argument(
         "--workspace",

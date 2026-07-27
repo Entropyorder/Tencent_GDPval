@@ -6,5 +6,9 @@ __pycache__/
 .cache/
 output/
 .tools/
+node_modules/
 data/source_documents/*
 !data/source_documents/.gitkeep
+workflows/stage2_task_builder/pi-agent/auth.json
+workflows/stage2_task_builder/pi-agent/sessions/
+workflows/stage2_task_builder/pi-agent/*.lock

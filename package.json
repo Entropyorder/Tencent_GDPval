@@ -1,0 +1,8 @@
+{
+  "name": "tencent-gdpval-pi-runtime",
+  "private": true,
+  "description": "Pinned Pi CLI runtime for the Stage 2 task builder",
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.82.1"
+  }
+}

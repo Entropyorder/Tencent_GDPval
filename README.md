@@ -1,7 +1,8 @@
 # 金融文件取证与 GDPval 题目构建
 
 本项目处理金融类 PDF、Word、Excel 和 CSV：先抽取通用 query 并检索 Top 20，
-再由 Claude Code 选择最终附件和构建题目，最后生成并验收 Golden Solution。
+再由 Pi CLI 通过自定义工具和 Skill 选择最终附件、生成辅助文件并反向构建题目，
+最后生成并验收 Golden Solution。
 
 ## 三人协作结构
 
@@ -13,11 +14,12 @@ workflows/
 │   ├── run.py
 │   ├── rename_attachments.py
 │   └── README.md
-├── stage2_task_builder/          # 负责人 B：Claude Code 选附件和出题
+├── stage2_task_builder/          # 负责人 B：Pi CLI 选附件和反向出题
 │   ├── run.py
 │   ├── prepare_workspace.py
-│   ├── run_claude_task.sh
-│   ├── export_query_markdown.py
+│   ├── run_pi_task.sh
+│   ├── pi_tool_backend.py
+│   ├── pi-agent/                # 自定义模型、Extension 和 Skill
 │   ├── validate_task_output.py
 │   └── README.md
 └── stage3_golden_solution/       # 负责人 C：Golden Solution
@@ -42,7 +44,7 @@ workflows/
 腾讯_GDPval金法医/
 ├── data/
 │   └── source_documents/        # 379 个原始文件
-├── prompts/                     # 全部中文提示词的唯一内容源
+├── prompts/                     # Stage 1/3 中文提示词
 ├── src/finance_forensics/       # 文档抽取、编目、query 和检索核心库
 ├── workflows/                   # 三个隔离工作流
 ├── scripts/
@@ -64,19 +66,20 @@ cd /home/ghpan/project/腾讯_GDPval金法医
 source .venv/bin/activate
 ```
 
-Inferera Base URL、模型和 API 密钥从权限为 `600` 的 `.env` 读取。Claude Code
-使用 `.env` 中配置的模型；密钥不写入提示词、代码或输出。
+Inferera Base URL、模型和 API 密钥从权限为 `600` 的 `.env` 读取。Pi 和
+Stage 3 的 Claude Code 均使用 `.env` 中配置的模型；密钥不写入 Skill、
+提示词、代码或输出。
 
-全部提示词集中在 `prompts/`：
+Stage 1 和 Stage 3 的提示词集中在 `prompts/`：
 
 - `文档编目.md`
 - `文档编目输入模板.md`
 - `通用查询生成.md`
 - `通用查询输入模板.md`
-- `Claude复杂题目构建.md`
 - `Claude黄金答案生成.md`
 
-根目录 `CLAUDE.md` 指向 `prompts/Claude复杂题目构建.md`。
+Stage 2 的规则已经迁入
+`workflows/stage2_task_builder/pi-agent/skills/gdpval-task-builder/SKILL.md`。
 
 ## 文档编目
 
@@ -124,7 +127,13 @@ output/stage1_query_retrieval/
 检索使用中文语义向量、字符 TF-IDF、类型匹配和 Cross-Encoder 重排，不使用
 生成式大模型逐个挑选文件。
 
-## Stage 2：Claude Code 题目构建
+## Stage 2：Pi 题目构建
+
+首次运行安装固定版本的 Pi CLI：
+
+```bash
+npm ci --ignore-scripts
+```
 
 ```bash
 .venv/bin/python workflows/stage2_task_builder/run.py \
@@ -132,7 +141,7 @@ output/stage1_query_retrieval/
   --tasks-dir output/tasks
 ```
 
-只准备工作区、暂不调用 Claude Code：
+只准备工作区、暂不调用 Pi：
 
 ```bash
 .venv/bin/python workflows/stage2_task_builder/run.py \
@@ -142,9 +151,11 @@ output/stage1_query_retrieval/
   --stop-after prepare
 ```
 
-每题只访问自己的 20 个候选文件，最终选择 10 至 17 个附件，可新增最多 3 个
-辅助附件。输出的 query 固定为“任务背景、具体任务、交付要求”三段，包含至少
-10 个工作步骤及不超过 5 个具名交付文件。
+每题只访问自己的20个候选文件。Pi 先比较并保存题目方向，再选择候选和生成
+0至3个辅助附件；最终固化10至17个 attachments 后，才反向编写 query。Pi
+禁用通用 shell/write/edit，只能调用 Stage 2 的受控工具。输出 query 固定为
+“任务背景、具体任务、交付要求”三段，包含至少10个工作步骤及不超过5个具名
+交付文件。
 
 验收已有题目：
 

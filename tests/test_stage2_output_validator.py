@@ -10,7 +10,7 @@ SCRIPT_PATH = (
     / "stage2_task_builder"
     / "validate_task_output.py"
 )
-SPEC = importlib.util.spec_from_file_location("claude_output_validator", SCRIPT_PATH)
+SPEC = importlib.util.spec_from_file_location("stage2_output_validator", SCRIPT_PATH)
 VALIDATOR = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VALIDATOR)
 

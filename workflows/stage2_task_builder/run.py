@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage 2: prepare isolated workspaces and let Claude Code build each task."""
+"""Stage 2: prepare isolated workspaces and let Pi build each task."""
 
 import argparse
 import json
@@ -69,7 +69,7 @@ def select_indexes(available, requested):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Prepare Top 20 workspaces and run Claude Code task construction."
+        description="Prepare Top 20 workspaces and run Pi task construction."
     )
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--tasks-dir", type=Path, default=DEFAULT_TASKS_DIR)
@@ -122,9 +122,9 @@ def main():
             "--task",
             task_id,
         ]
-        claude_command = [
+        pi_command = [
             "bash",
-            WORKFLOW_DIR / "run_claude_task.sh",
+            WORKFLOW_DIR / "run_pi_task.sh",
             task_id,
             tasks_dir,
         ]
@@ -132,7 +132,7 @@ def main():
         if args.dry_run:
             print(command_text(prepare_command))
             if args.stop_after == "task":
-                print(command_text(claude_command))
+                print(command_text(pi_command))
                 print(command_text(validator))
             continue
 
@@ -150,13 +150,13 @@ def main():
         if args.stop_after == "prepare":
             continue
         if args.resume and command_succeeds(validator):
-            print(f"[stage2] skip Claude task={task_id}: validation passed")
+            print(f"[stage2] skip Pi task={task_id}: validation passed")
             continue
 
-        claude_result = run_command(claude_command, check=False)
-        if claude_result.returncode:
+        pi_result = run_command(pi_command, check=False)
+        if pi_result.returncode:
             print(
-                f"[stage2] warning: Claude exited with {claude_result.returncode}; "
+                f"[stage2] warning: Pi exited with {pi_result.returncode}; "
                 "checking actual files",
                 flush=True,
             )
