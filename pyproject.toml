@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "finance-file-forensics"
+version = "0.1.0"
+description = "Initial cataloging and LLM-assisted naming for finance documents."
+requires-python = ">=3.12"
+dependencies = [
+    "charset-normalizer>=3.4",
+    "fastembed>=0.8",
+    "numpy>=2.0",
+    "openai>=1.100",
+    "openpyxl>=3.1",
+    "pydantic>=2.10",
+    "PyMuPDF>=1.25",
+    "python-calamine>=0.8",
+    "python-docx>=1.1",
+    "python-dotenv>=1.0",
+    "scikit-learn>=1.7",
+    "xlrd>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+finance-forensics = "finance_forensics.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/finance_forensics"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
