@@ -229,6 +229,11 @@ def validate_task(task_dir):
             f"{task_dir.name}: expected at most 3 generated files, "
             f"found {generated_count}"
         )
+    if workflow_path.is_file() and generated_count < 1:
+        raise ValueError(
+            f"{task_dir.name}: expected at least 1 generated file in the "
+            "final attachment set"
+        )
     if not (task_dir / "final" / "internal" / "evidence_matrix.md").is_file():
         raise FileNotFoundError(f"{task_dir.name}: missing evidence_matrix.md")
     if not (task_dir / "final" / "internal" / "quality_review.md").is_file():

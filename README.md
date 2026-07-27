@@ -151,8 +151,9 @@ npm ci --ignore-scripts
   --stop-after prepare
 ```
 
-每题只访问自己的20个候选文件。Pi 先比较并保存题目方向，再选择候选和生成
-0至3个辅助附件；最终固化10至17个 attachments 后，按最终顺序重新编号，
+每题只访问自己的20个候选文件。Pi 先比较并保存题目方向，再选择候选，并生成
+且实际选用1至3个辅助附件；最终固化10至17个 attachments 后，按最终顺序
+重新编号，
 再分别反向编写 `workflow.md` 和 query。Pi 禁用通用 shell/write/edit，只能
 调用 Stage 2 的受控工具。workflow 至少包含12个工作步骤；query 固定为
 “任务背景、具体任务、交付要求”三段，其中“具体任务”只能用一个整体叙述

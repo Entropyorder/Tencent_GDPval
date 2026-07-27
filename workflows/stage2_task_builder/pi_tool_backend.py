@@ -576,6 +576,10 @@ def assemble(
         seen_sources.add(source_key)
     if generated_count > 3:
         raise ValueError("at most 3 generated attachments are allowed")
+    if generated_count < 1:
+        raise ValueError(
+            "at least 1 generated attachment must be included in the final set"
+        )
     if sum(item["role"] == "core" for item in normalized) < 2:
         raise ValueError("the attachment set needs at least 2 core evidence files")
     final_dir = task_dir / "final"

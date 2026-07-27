@@ -187,8 +187,9 @@ def prepare_task(
         f"# 题目 {task_id}\n\n"
         f"本工作区只包含查询 {task_id} 对应的 {len(records)} 个候选文件，"
         "不得访问另一道题目的工作区。\n\n"
-        "使用十至十七个附件构建一道最终金融题目。可以新增最多三个明确标记的"
-        "生成附件。严格使用 Pi 的 `gdpval-task-builder` Skill 和自定义工具，"
+        "使用十至十七个附件构建一道最终金融题目。必须新增并实际选用一至三个"
+        "明确标记的生成附件。严格使用 Pi 的 `gdpval-task-builder` Skill 和"
+        "自定义工具，"
         "先固化并重新编号最终附件，再分别反向编写至少十二步的 workflow 和"
         "整体叙述式 query，并完成确定性验收。\n",
         encoding="utf-8",

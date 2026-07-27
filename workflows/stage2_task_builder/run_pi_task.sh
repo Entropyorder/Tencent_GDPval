@@ -54,7 +54,7 @@ cd "$TASK_DIR"
   --provider inferera \
   --model "$INFERERA_MODEL" \
   --tools "candidate_inventory,read_candidate,search_evidence,set_task_direction,create_generated_attachment,assemble_final_attachments,finalize_task" \
-  "/skill:gdpval-task-builder 执行当前TASK.md对应的完整Stage 2任务。必须从20个候选开始，先确定方向和最终附件，再分别反向编写至少12步的workflow和整体叙述式query，并以finalize_task验收通过结束。" \
+  "/skill:gdpval-task-builder 执行当前TASK.md对应的完整Stage 2任务。必须从20个候选开始，先确定方向，创建并实际选用1至3个生成附件，固化最终附件，再分别反向编写至少12步的workflow和整体叙述式query，并以finalize_task验收通过结束。" \
   > "$LOG_DIR/task_${TASK_ID}_pi.jsonl" \
   2> "$LOG_DIR/task_${TASK_ID}_pi.stderr.log"
 

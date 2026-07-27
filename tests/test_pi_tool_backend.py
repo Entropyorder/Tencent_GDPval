@@ -233,6 +233,21 @@ def test_pi_backend_enforces_order_and_completes_full_workflow(tmp_path):
                 "expectedUse": "用于统一口径、指标计算和证据复核。",
             }
         )
+    without_generated = attachments + [
+        {
+            "candidateRank": 4,
+            "role": "supporting",
+            "rationale": "该文件补充主体经营信息，可用于跨文件验证和异常识别。",
+            "expectedUse": "用于统一口径、指标计算和证据复核。",
+        }
+    ]
+    with pytest.raises(ValueError, match="at least 1 generated attachment"):
+        call(
+            task_dir,
+            "assemble_final_attachments",
+            attachments=without_generated,
+        )
+
     attachments.append(
         {
             "generatedFilename": "情景参数.xlsx",

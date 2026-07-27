@@ -153,10 +153,10 @@ export default function (pi: ExtensionAPI) {
     name: "create_generated_attachment",
     label: "Create Generated Attachment",
     description:
-      "创建最多3个明确标记的辅助附件，支持Markdown、文本、CSV或XLSX。只能提供任务假设或带来源定位的结构化整理，不能预先完成核心分析。",
+      "创建明确标记的辅助附件，支持Markdown、文本、CSV或XLSX。每道题必须创建并在最终附件中实际选用1至3个。只能提供任务假设或带来源定位的结构化整理，不能预先完成核心分析。",
     promptSnippet: "生成受控的任务假设或来源整理附件",
     promptGuidelines: [
-      "仅在可回答性确有缺口时调用 create_generated_attachment，且不得生成核心答案。",
+      "必须调用 create_generated_attachment 并在最终附件中实际选用1至3个；不得生成核心答案。",
       "CSV payload 使用 {\"rows\":[[...]]}；XLSX payload 使用 {\"sheets\":[{\"name\":\"...\",\"rows\":[[...]]}]}。",
     ],
     parameters: Type.Object({
@@ -188,7 +188,7 @@ export default function (pi: ExtensionAPI) {
     name: "assemble_final_attachments",
     label: "Assemble Final Attachments",
     description:
-      "根据已选方向，将10至17个候选/生成文件复制到final/attachments，按最终顺序重新编号为01__至NN__，计算哈希并写selection_manifest。调用后才能反向编写workflow和query。",
+      "根据已选方向，将10至17个候选/生成文件复制到final/attachments，其中必须实际包含1至3个生成附件；按最终顺序重新编号为01__至NN__，计算哈希并写selection_manifest。调用后才能反向编写workflow和query。",
     promptSnippet: "固化最终附件集合及选择清单",
     promptGuidelines: [
       "先固化附件再写 query；assemble_final_attachments 会拒绝题目方向之外的候选和未登记生成文件。",
