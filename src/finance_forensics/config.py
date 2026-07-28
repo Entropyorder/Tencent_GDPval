@@ -22,6 +22,7 @@ class Settings:
     max_output_tokens: int
     query_max_output_tokens: int
     temperature: float
+    query_temperature: float
     prompt_path: Path
     prompt_version: str = "document_profile_v1"
 
@@ -40,6 +41,9 @@ class Settings:
                 os.environ.get("QUERY_MAX_OUTPUT_TOKENS", "2048")
             ),
             temperature=float(os.environ.get("LLM_TEMPERATURE", "0.1")),
+            query_temperature=float(
+                os.environ.get("QUERY_LLM_TEMPERATURE", "0.7")
+            ),
             prompt_path=PROMPT_DIR / "文档编目.md",
         )
 

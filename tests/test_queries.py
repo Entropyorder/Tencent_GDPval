@@ -1,9 +1,12 @@
 from types import SimpleNamespace
 
+import pytest
+from pydantic import ValidationError
+
 from finance_forensics.config import PROMPT_DIR
 from finance_forensics.models import QueryDraft
 from finance_forensics.query_llm import GDPvalQueryClient, normalize_query_payload
-from finance_forensics.query_pipeline import task_id_for_document
+from finance_forensics.query_pipeline import QueryProcessor, task_id_for_document
 
 
 def generic_query():
@@ -32,6 +35,13 @@ def test_query_payload_only_keeps_query():
     assert QueryDraft.model_validate(normalized).query == generic_query()
 
 
+def test_query_only_has_a_600_character_upper_limit():
+    assert QueryDraft(query="简短但完整的职业任务。").query == "简短但完整的职业任务。"
+    assert QueryDraft(query="任" * 600).query == "任" * 600
+    with pytest.raises(ValidationError):
+        QueryDraft(query="任" * 601)
+
+
 def test_task_id_is_stable_and_prompt_version_specific():
     first = task_id_for_document("doc_1234", "v1")
     assert first == task_id_for_document("doc_1234", "v1")
@@ -46,11 +56,49 @@ def test_user_prompt_contains_schema_context_and_document():
     ).read_text(encoding="utf-8")
     result = client.build_user_prompt(
         {
-            "task_family": "信用风险与评级分析",
+            "document_type": "rating_report",
+            "variation_marker": "a1b2c3d4",
             "forbidden_specific_terms": ["某公司"],
-        }
+        },
+        "这是一段具有区分度的样本文本。",
     )
     assert "必需的 JSON Schema" in result
     assert '"query"' in result
-    assert "信用风险与评级分析" in result
+    assert "rating_report" in result
+    assert "a1b2c3d4" in result
+    assert "这是一段具有区分度的样本文本。" in result
     assert "某公司" not in result
+
+
+def test_query_processor_passes_extracted_document_text(tmp_path):
+    source = tmp_path / "sample.csv"
+    source.write_text("主题,内容\n独特样本,待核验的事项\n", encoding="utf-8")
+
+    class CapturingClient:
+        prompt_version = "gdpval_query_v3"
+
+        def __init__(self):
+            self.document_content = None
+
+        def generate(self, context, document_content):
+            self.document_content = document_content
+            return QueryDraft(query="核验材料间的关键事实冲突并形成处置意见。")
+
+    client = CapturingClient()
+    settings = SimpleNamespace(max_input_chars=1000, model="test-model")
+    processor = QueryProcessor(
+        settings,
+        client,
+        {
+            source.name: {
+                "document_id": "doc_1234",
+                "document_type": "other",
+            }
+        },
+    )
+
+    record = processor.process(source)
+
+    assert record.generation.status == "success"
+    assert "独特样本" in client.document_content
+    assert "待核验的事项" in client.document_content

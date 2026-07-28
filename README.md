@@ -70,6 +70,10 @@ Inferera Base URL、模型和 API 密钥从权限为 `600` 的 `.env` 读取。P
 Stage 3 的 Claude Code 均使用 `.env` 中配置的模型；密钥不写入 Skill、
 提示词、代码或输出。
 
+粗 query 生成会读取对应源文件的正文抽样，默认使用独立的
+`QUERY_LLM_TEMPERATURE=0.7` 增加题目方向差异；`LLM_TEMPERATURE` 仍用于
+文档编目，二者互不影响。
+
 Stage 1 和 Stage 3 的提示词集中在 `prompts/`：
 
 - `文档编目.md`

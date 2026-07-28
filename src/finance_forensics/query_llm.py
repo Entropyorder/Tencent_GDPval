@@ -16,7 +16,7 @@ def normalize_query_payload(payload):
 
 
 class GDPvalQueryClient:
-    prompt_version = "gdpval_query_v2"
+    prompt_version = "gdpval_query_v3"
 
     def __init__(self, settings):
         settings.validate_api()
@@ -60,7 +60,7 @@ class GDPvalQueryClient:
                         {"role": "system", "content": self.system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    "temperature": self.settings.temperature,
+                    "temperature": self.settings.query_temperature,
                     "max_tokens": self.settings.query_max_output_tokens,
                 }
                 if use_response_format:
@@ -73,6 +73,8 @@ class GDPvalQueryClient:
                 payload = normalize_query_payload(
                     extract_json_object(response.choices[0].message.content)
                 )
+                if not payload["query"]:
+                    raise ValueError("query must not be empty")
                 draft = QueryDraft.model_validate(payload)
                 forbidden_terms = context.get("forbidden_specific_terms", [])
                 leaked = [

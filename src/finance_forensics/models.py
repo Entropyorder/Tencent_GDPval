@@ -109,7 +109,7 @@ class DocumentRecord(StrictModel):
 
 
 class QueryDraft(StrictModel):
-    query: str = Field(min_length=350, max_length=600)
+    query: str = Field(max_length=600)
 
 
 class QueryGenerationDetails(StrictModel):
@@ -124,7 +124,7 @@ class QueryGenerationDetails(StrictModel):
 class QueryRecord(StrictModel):
     schema_version: Literal["2.0"] = "2.0"
     task_id: str
-    query: str | None = Field(default=None, min_length=350, max_length=600)
+    query: str | None = Field(default=None, max_length=600)
     source_document_id: str
     source_filename: str
     generation: QueryGenerationDetails

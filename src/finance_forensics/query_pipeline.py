@@ -5,31 +5,13 @@ from pathlib import Path
 import time
 from uuid import NAMESPACE_URL, uuid5
 
+from .extractors import extract_document
 from .models import QueryGenerationDetails, QueryRecord
 from .pipeline import now_iso
 
 
-def task_id_for_document(document_id, prompt_version="gdpval_query_v2"):
+def task_id_for_document(document_id, prompt_version="gdpval_query_v3"):
     return str(uuid5(NAMESPACE_URL, f"{document_id}:{prompt_version}"))
-
-
-TASK_FAMILY_BY_DOCUMENT_TYPE = {
-    "annual_report": "经营与财务表现分析",
-    "financial_statement": "经营与财务表现分析",
-    "business_data": "经营与财务表现分析",
-    "rating_report": "信用风险与评级分析",
-    "regulatory_inquiry": "监管问询与信息披露核查",
-    "regulatory_reply": "监管问询与信息披露核查",
-    "audit_report": "审计与财务报表核查",
-    "prospectus": "融资材料与投资风险分析",
-    "offering_document": "融资材料与投资风险分析",
-    "bond_report": "债券信用与偿债风险分析",
-    "legal_opinion": "合规与法律风险审阅",
-    "statistical_data": "行业或市场数据分析",
-    "research_report": "研究观点与证据评估",
-    "policy_document": "政策影响与合规分析",
-    "other": "资料梳理与风险分析",
-}
 
 
 def load_catalog(path):
@@ -118,17 +100,15 @@ class QueryProcessor:
                     )
                 ),
             ]
-            document_type = profile.get("document_type") or "other"
+            extracted = extract_document(path, self.settings.max_input_chars)
             context = {
                 "forbidden_specific_terms": [
                     term for term in forbidden_specific_terms if term
                 ],
-                "task_family": TASK_FAMILY_BY_DOCUMENT_TYPE.get(
-                    document_type, TASK_FAMILY_BY_DOCUMENT_TYPE["other"]
-                ),
-                "document_type": document_type,
+                "document_type": profile.get("document_type") or "other",
+                "variation_marker": task_id.replace("-", "")[-8:],
             }
-            draft = self.llm_client.generate(context, "")
+            draft = self.llm_client.generate(context, extracted.text)
             return QueryRecord(
                 task_id=task_id,
                 query=draft.query,
