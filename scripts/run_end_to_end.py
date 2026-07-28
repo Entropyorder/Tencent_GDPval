@@ -115,7 +115,6 @@ def main():
     parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR)
     parser.add_argument("--workers", type=int, default=2)
-    parser.add_argument("--candidate-k", type=int, default=80)
     parser.add_argument(
         "--task-index",
         type=int,
@@ -131,8 +130,6 @@ def main():
     run_id = validate_run_id(args.run_id)
     if args.resume and args.force:
         raise SystemExit("--resume and --force cannot be used together")
-    if args.candidate_k < 20:
-        raise SystemExit("--candidate-k must be at least 20")
 
     if args.queries:
         query_count = len(load_query_items(args.queries))
@@ -160,8 +157,6 @@ def main():
         args.input_dir.resolve(),
         "--workers",
         str(args.workers),
-        "--candidate-k",
-        str(args.candidate_k),
     ]
     if args.queries:
         stage1_command.extend(["--queries", args.queries.resolve()])

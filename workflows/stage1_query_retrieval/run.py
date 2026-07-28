@@ -71,9 +71,14 @@ def retrieval_is_valid(path, expected_count):
     except (OSError, json.JSONDecodeError):
         return False
     queries = payload.get("queries", [])
+    retrieval = payload.get("retrieval", {})
     return (
         len(queries) == expected_count
         and all(len(query.get("results", [])) == 20 for query in queries)
+        and retrieval.get("semantic_input") == "raw_query_to_catalog_summary"
+        and retrieval.get("keyword_method")
+        == "llm_keywords_to_catalog_profile_char_tfidf_2_4gram"
+        and (path.parent / "query_keywords.json").is_file()
     )
 
 
@@ -97,7 +102,6 @@ def main():
     parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR)
     parser.add_argument("--workers", type=int, default=2)
-    parser.add_argument("--candidate-k", type=int, default=80)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
@@ -107,8 +111,6 @@ def main():
         raise SystemExit("--resume and --force cannot be used together")
     if args.workers < 1:
         raise SystemExit("--workers must be at least 1")
-    if args.candidate_k < 20:
-        raise SystemExit("--candidate-k must be at least 20")
 
     output_dir = args.output_dir.resolve()
     queries_path = output_dir / "queries.json"
@@ -163,8 +165,8 @@ def main():
         retrieval_dir,
         "--top-k",
         "20",
-        "--candidate-k",
-        str(args.candidate_k),
+        "--keyword-workers",
+        str(args.workers),
     ]
 
     if args.dry_run:

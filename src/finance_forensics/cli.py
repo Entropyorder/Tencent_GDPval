@@ -13,6 +13,7 @@ from .config import (
     Settings,
 )
 from .extractors import SUPPORTED_EXTENSIONS
+from .keyword_llm import QueryKeywordClient, load_or_extract_query_keywords
 from .llm import InfereraClient
 from .metadata import CollectorMetadata
 from .models import DocumentRecord
@@ -27,7 +28,9 @@ from .query_llm import GDPvalQueryClient
 from .query_pipeline import QueryProcessor, load_catalog, run_query_batch
 from .retrieval import (
     DEFAULT_EMBEDDING_MODEL,
-    DEFAULT_RERANK_MODEL,
+    DEFAULT_KEYWORD_WEIGHT,
+    DEFAULT_SEMANTIC_WEIGHT,
+    load_queries,
     retrieve_attachments,
 )
 
@@ -128,13 +131,13 @@ def build_parser():
     )
     retrieve.add_argument("--top-k", type=int, default=20)
     retrieve.add_argument("--model", default=DEFAULT_EMBEDDING_MODEL)
-    retrieve.add_argument("--rerank-model", default=DEFAULT_RERANK_MODEL)
-    retrieve.add_argument("--candidate-k", type=int, default=80)
-    retrieve.add_argument("--rerank-weight", type=float, default=0.60)
-    retrieve.add_argument("--profile-quality-weight", type=float, default=0.10)
-    retrieve.add_argument("--dense-weight", type=float, default=0.70)
-    retrieve.add_argument("--lexical-weight", type=float, default=0.15)
-    retrieve.add_argument("--type-weight", type=float, default=0.15)
+    retrieve.add_argument("--keyword-workers", type=int, default=8)
+    retrieve.add_argument(
+        "--semantic-weight", type=float, default=DEFAULT_SEMANTIC_WEIGHT
+    )
+    retrieve.add_argument(
+        "--keyword-weight", type=float, default=DEFAULT_KEYWORD_WEIGHT
+    )
     return parser
 
 
@@ -254,20 +257,32 @@ def command_generate_queries(args):
 
 
 def command_retrieve_attachments(args):
+    queries = load_queries(args.queries)
+    settings = Settings.from_env()
+    keyword_client = QueryKeywordClient(settings)
+    keyword_cache = Path(args.output_dir).resolve() / "query_keywords.json"
+    query_keywords = load_or_extract_query_keywords(
+        queries,
+        keyword_client,
+        keyword_cache,
+        workers=args.keyword_workers,
+    )
     manifest = retrieve_attachments(
         queries_path=args.queries,
+        query_keywords=query_keywords,
         catalog_path=args.catalog,
         input_dir=args.input_dir,
         output_dir=args.output_dir,
         top_k=args.top_k,
         model_name=args.model,
-        rerank_model_name=args.rerank_model,
-        candidate_k=args.candidate_k,
-        rerank_weight=args.rerank_weight,
-        profile_quality_weight=args.profile_quality_weight,
-        dense_weight=args.dense_weight,
-        lexical_weight=args.lexical_weight,
-        type_weight=args.type_weight,
+        semantic_weight=args.semantic_weight,
+        keyword_weight=args.keyword_weight,
+        keyword_metadata={
+            "model": keyword_client.settings.model,
+            "prompt_version": keyword_client.prompt_version,
+            "prompt_sha256": keyword_client.prompt_sha256,
+            "cache_file": str(keyword_cache),
+        },
     )
     for item in manifest["queries"]:
         print(

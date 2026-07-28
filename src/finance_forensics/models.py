@@ -112,6 +112,10 @@ class QueryDraft(StrictModel):
     query: str = Field(max_length=600)
 
 
+class QueryKeywordsDraft(StrictModel):
+    keywords: list[str] = Field(min_length=5, max_length=8)
+
+
 class QueryGenerationDetails(StrictModel):
     status: Literal["success", "failed"]
     model: str

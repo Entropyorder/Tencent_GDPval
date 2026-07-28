@@ -4,12 +4,11 @@ import numpy as np
 
 from finance_forensics.retrieval import (
     build_document_text,
+    build_keyword_document_text,
     catalog_attachment_filename,
+    combine_retrieval_scores,
     load_queries,
     minmax,
-    profile_quality_relevance,
-    retrieval_query_text,
-    type_relevance,
 )
 
 
@@ -22,7 +21,7 @@ def test_load_queries_accepts_query_only_records(tmp_path):
     assert load_queries(path) == ["信用风险分析", "经营表现分析"]
 
 
-def test_build_document_text_uses_profile_fields():
+def test_build_document_text_uses_only_summary_for_semantic_matching():
     text = build_document_text(
         {
             "document_type": "rating_report",
@@ -32,9 +31,20 @@ def test_build_document_text_uses_profile_fields():
             "summary": "某份评级资料的摘要。",
         }
     )
-    assert "信用评级报告" in text
-    assert "信用风险" in text
-    assert "评级 偿债" in text
+    assert text == "某份评级资料的摘要。"
+
+
+def test_build_keyword_document_text_uses_catalog_profile():
+    text = build_keyword_document_text(
+        {
+            "business_topic": "募集资金用途核查",
+            "keywords": ["募集资金", "约定用途"],
+            "summary": "核验实际资金使用与发行约定是否一致。",
+        }
+    )
+    assert "募集资金用途核查" in text
+    assert "募集资金 约定用途" in text
+    assert "核验实际资金使用" in text
 
 
 def test_catalog_attachment_filename_uses_suggested_name_and_disambiguates():
@@ -52,31 +62,14 @@ def test_catalog_attachment_filename_uses_suggested_name_and_disambiguates():
     ) == "测试公司_年度报告_2025_doc_12345678_12345678.pdf"
 
 
-def test_type_relevance_prefers_matching_document_type():
-    query = "请完成目标企业的信用评级与风险分析，并考虑监管政策变化"
-    assert type_relevance(query, "rating_report") == 1.0
-    assert type_relevance(query, "rating_report") > type_relevance(
-        query, "policy_document"
+def test_combined_score_uses_only_semantic_and_keyword_signals():
+    scores = combine_retrieval_scores(
+        np.array([0.2, 0.4, 0.6]),
+        np.array([0.8, 0.3, 0.1]),
+        semantic_weight=0.75,
+        keyword_weight=0.25,
     )
-
-
-def test_retrieval_query_reduces_generic_task_to_search_focus():
-    focus = retrieval_query_text("请完成目标企业的经营与财务表现评估")
-    assert "经营业绩" in focus
-    assert len(focus) < 100
-
-
-def test_profile_quality_penalizes_review_templates_for_enterprise_query():
-    query = "分析目标企业的经营与财务表现"
-    company = {
-        "company_name": "测试公司",
-        "subject_name": "测试公司",
-        "needs_review": False,
-    }
-    template = {"needs_review": True}
-    assert profile_quality_relevance(query, company) > profile_quality_relevance(
-        query, template
-    )
+    assert np.allclose(scores, [0.25, 0.4464286, 0.75])
 
 
 def test_minmax_normalizes_scores():

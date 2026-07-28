@@ -72,7 +72,8 @@ Stage 3 的 Claude Code 均使用 `.env` 中配置的模型；密钥不写入 Sk
 
 粗 query 生成会读取对应源文件的正文抽样，默认使用独立的
 `QUERY_LLM_TEMPERATURE=0.7` 增加题目方向差异；`LLM_TEMPERATURE` 仍用于
-文档编目，二者互不影响。
+文档编目，二者互不影响。检索前由同一 Inferera 模型为每条 query 动态提取
+关键词，默认使用 `KEYWORD_LLM_TEMPERATURE=0.1`。
 
 Stage 1 和 Stage 3 的提示词集中在 `prompts/`：
 
@@ -80,6 +81,8 @@ Stage 1 和 Stage 3 的提示词集中在 `prompts/`：
 - `文档编目输入模板.md`
 - `通用查询生成.md`
 - `通用查询输入模板.md`
+- `检索关键词提取.md`
+- `检索关键词输入模板.md`
 - `Claude黄金答案生成.md`
 
 Stage 2 的规则已经迁入
@@ -118,18 +121,31 @@ finance-forensics run --workers 4
   --output-dir output/stage1_query_retrieval
 ```
 
+使用本地完整编目检索：
+
+```bash
+.venv/bin/python workflows/stage1_query_retrieval/run.py \
+  --queries output/queries/query_test.json \
+  --catalog output/catalog/catalog/document_catalog.json \
+  --input-dir data/unzip_202607282110_source_documents/source_documents \
+  --output-dir output/stage1_query_retrieval_full
+```
+
 输出：
 
 ```text
 output/stage1_query_retrieval/
 ├── queries.json
 └── retrieval/
+    ├── query_keywords.json
     ├── manifest.json
     └── query_NNN/files/         # 每条 query 恰好 20 个候选
 ```
 
-检索使用中文语义向量、字符 TF-IDF、类型匹配和 Cross-Encoder 重排，不使用
-生成式大模型逐个挑选文件。
+检索只使用两类信号：完整 query 与 catalog `summary` 的中文向量相似度，以及
+大模型动态提取关键词与文档摘要、业务主题和编目关键词的字符短语匹配。默认
+权重分别为 `0.75` 和 `0.25`；不使用固定题型词表、文档类型加权或生成式
+大模型逐个阅读候选文件。
 
 ## Stage 2：Pi 题目构建
 
