@@ -12,3 +12,7 @@ data/source_documents/*
 workflows/stage2_task_builder/pi-agent/auth.json
 workflows/stage2_task_builder/pi-agent/sessions/
 workflows/stage2_task_builder/pi-agent/*.lock
+workflows/stage3_golden_solution/pi-agent/auth.json
+workflows/stage3_golden_solution/pi-agent/models-store.json
+workflows/stage3_golden_solution/pi-agent/sessions/
+workflows/stage3_golden_solution/pi-agent/*.lock

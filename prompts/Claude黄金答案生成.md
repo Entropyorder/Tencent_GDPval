@@ -1,3 +1,8 @@
+> [弃用存档] 本文件为旧 `claude --bare -p` 路径的系统提示词，不再驱动 Stage 3。
+> Stage 3 现改用 Pi CLI + `golden-solution` Skill（builtin 工具）路径，Skill 主体位于
+> `workflows/stage3_golden_solution/pi-agent/skills/golden-solution/SKILL.md`。
+> 本文件仅作历史参考保留。
+
 # Claude Code 金融题目黄金答案生成
 
 ## 一、角色与目标
