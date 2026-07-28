@@ -97,7 +97,7 @@ def main():
         ]
         command = [
             "bash",
-            WORKFLOW_DIR / "run_claude_golden_solution.sh",
+            WORKFLOW_DIR / "run_pi_golden_solution.sh",
             task_id,
             tasks_dir,
         ]
@@ -116,7 +116,7 @@ def main():
         result = run_command(command, check=False)
         if result.returncode:
             print(
-                f"[stage3] warning: Claude exited with {result.returncode}; "
+                f"[stage3] warning: Pi exited with {result.returncode}; "
                 "checking actual files",
                 flush=True,
             )
