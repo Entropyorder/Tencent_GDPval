@@ -190,6 +190,45 @@ def test_pi_backend_enforces_order_and_completes_full_workflow(tmp_path):
         )
 
     call(task_dir, "set_task_direction", **directions())
+    with pytest.raises(ValueError, match="financial_resource_inventory"):
+        call(
+            task_dir,
+            "create_generated_attachment",
+            filename="情景参数.xlsx",
+            format="xlsx",
+            purpose="为所有主体提供一致且明确的压力测试参数假设。",
+            sourceDocumentIds=["doc_01", "doc_02"],
+            templateReference="investment-comparison-xlsx",
+            designRationale=(
+                "借鉴多方案参数矩阵和输入区布局，只写任务给定假设，不复制模板数据。"
+            ),
+            payload=json.dumps(
+                {"sheets": [{"name": "参数", "rows": [["变量", "基准"], ["收入", 1]]}]}
+            ),
+        )
+
+    resources = call(task_dir, "financial_resource_inventory")
+    assert resources["details"]["skill"] == (
+        "generating-financial-analysis-reports"
+    )
+    assert resources["details"]["template_count"] == 6
+    with pytest.raises(ValueError, match="does not support Stage 2 xlsx files"):
+        call(
+            task_dir,
+            "create_generated_attachment",
+            filename="不兼容模板.xlsx",
+            format="xlsx",
+            purpose="验证文字报告模板不能被错误用于电子表格附件。",
+            sourceDocumentIds=["doc_01", "doc_02"],
+            templateReference="financial-analysis-report-doc",
+            designRationale=(
+                "尝试将文字报告模板用于电子表格文件，并声明沿用其章节结构和版式层级；"
+                "此处仅用于验证资源格式兼容性校验能够在生成文件前稳定生效。"
+            ),
+            payload=json.dumps(
+                {"sheets": [{"name": "参数", "rows": [["变量", "基准"], ["收入", 1]]}]}
+            ),
+        )
     generated = call(
         task_dir,
         "create_generated_attachment",
@@ -197,6 +236,11 @@ def test_pi_backend_enforces_order_and_completes_full_workflow(tmp_path):
         format="xlsx",
         purpose="为所有主体提供一致且明确的压力测试参数假设。",
         sourceDocumentIds=["doc_01", "doc_02"],
+        templateReference="investment-comparison-xlsx",
+        designRationale=(
+            "借鉴投资方案对比模板的横向情景矩阵、说明页和输入区布局，"
+            "只呈现题目假设及来源，不复制模板数据或生成压力测试结论。"
+        ),
         payload=json.dumps(
             {
                 "sheets": [
@@ -214,9 +258,14 @@ def test_pi_backend_enforces_order_and_completes_full_workflow(tmp_path):
         ),
     )
     assert generated["details"]["filename"] == "情景参数.xlsx"
+    assert generated["details"]["template_reference"] == (
+        "investment-comparison-xlsx"
+    )
     workbook = openpyxl.load_workbook(task_dir / "generated" / "情景参数.xlsx")
     assert workbook.sheetnames == ["说明", "参数"]
     assert workbook["参数"]["C2"].value == -0.1
+    assert workbook["说明"]["B4"].value == "investment-comparison-xlsx"
+    assert workbook["参数"]["A1"].fill.fgColor.rgb == "00404040"
     workbook.close()
 
     attachments = []
@@ -310,3 +359,20 @@ def test_pi_backend_enforces_order_and_completes_full_workflow(tmp_path):
     assert result["details"]["deliverable_files"] == 2
     assert (task_dir / "final" / "query.md").is_file()
     assert (task_dir / "final" / "workflow.md").is_file()
+    assert (
+        task_dir / "final" / "internal" / "financial_resources.json"
+    ).is_file()
+    selection = json.loads(
+        (
+            task_dir / "final" / "internal" / "selection_manifest.json"
+        ).read_text(encoding="utf-8")
+    )
+    generated_record = next(
+        item for item in selection["attachments"] if item["origin"] == "generated"
+    )
+    assert generated_record["skill_reference"] == (
+        "generating-financial-analysis-reports"
+    )
+    assert generated_record["template_reference"] == (
+        "investment-comparison-xlsx"
+    )

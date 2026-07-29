@@ -16,10 +16,23 @@ import tempfile
 from typing import Any
 
 import openpyxl
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 
 WORKFLOW_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = WORKFLOW_DIR.parents[1]
+FINANCIAL_REPORT_SKILL_DIR = Path(
+    os.environ.get(
+        "GDPVAL_FINANCIAL_REPORT_SKILL_DIR",
+        PROJECT_ROOT / "financial-analysis-report-skill",
+    )
+).resolve()
+FINANCIAL_TEMPLATE_DIR = Path(
+    os.environ.get(
+        "GDPVAL_FINANCIAL_TEMPLATE_DIR",
+        PROJECT_ROOT / "financial-analysis",
+    )
+).resolve()
 sys.path.insert(0, str(WORKFLOW_DIR))
 
 from validate_task_output import validate_task
@@ -33,6 +46,7 @@ GENERATED_EXTENSIONS = {
 }
 ROLES = {"core", "supporting", "purposeful_noise", "generated"}
 ATTACHMENT_PREFIX_PATTERN = re.compile(r"^\d{2}__")
+FINANCIAL_SKILL_NAME = "generating-financial-analysis-reports"
 
 
 def sha256(path: Path) -> str:
@@ -41,6 +55,51 @@ def sha256(path: Path) -> str:
         while chunk := stream.read(1024 * 1024):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def financial_resource_catalog() -> dict[str, Any]:
+    skill_path = FINANCIAL_REPORT_SKILL_DIR / "SKILL.md"
+    manifest_path = FINANCIAL_TEMPLATE_DIR / "template_manifest.json"
+    if not skill_path.is_file():
+        raise FileNotFoundError(f"financial report skill is missing: {skill_path}")
+    if not manifest_path.is_file():
+        raise FileNotFoundError(
+            f"financial template manifest is missing: {manifest_path}"
+        )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    templates = []
+    seen_ids = set()
+    for item in manifest.get("templates", []):
+        resource_id = str(item.get("id") or "").strip()
+        filename = clean_filename(str(item.get("filename") or ""))
+        if not resource_id or resource_id in seen_ids:
+            raise ValueError(f"invalid or duplicate financial template id: {resource_id}")
+        path = FINANCIAL_TEMPLATE_DIR / filename
+        if not path.is_file():
+            raise FileNotFoundError(f"financial template is missing: {path}")
+        seen_ids.add(resource_id)
+        templates.append(
+            {
+                "id": resource_id,
+                "filename": filename,
+                "stage2_formats": list(item.get("stage2_formats") or []),
+                "golden_formats": list(item.get("golden_formats") or []),
+                "usage": str(item.get("usage") or "").strip(),
+                "bytes": path.stat().st_size,
+                "sha256": sha256(path),
+            }
+        )
+    if not templates:
+        raise ValueError("financial template manifest contains no templates")
+    return {
+        "schema_version": "1.0",
+        "skill": {
+            "name": FINANCIAL_SKILL_NAME,
+            "file": "financial-analysis-report-skill/SKILL.md",
+            "sha256": sha256(skill_path),
+        },
+        "templates": templates,
+    }
 
 
 def write_json(path: Path, payload: Any) -> None:
@@ -237,6 +296,24 @@ def search_evidence(
     }
 
 
+def financial_resources(
+    task_dir: Path, _: dict[str, Any], __: dict[str, Any]
+):
+    if not (task_dir / "working" / "direction_plan.json").is_file():
+        raise ValueError("set_task_direction must be completed first")
+    payload = financial_resource_catalog()
+    with mutation_lock(task_dir):
+        write_json(task_dir / "working" / "financial_resources.json", payload)
+    return {
+        "message": json.dumps(payload, ensure_ascii=False, indent=2),
+        "details": {
+            "skill": payload["skill"]["name"],
+            "template_count": len(payload["templates"]),
+            "template_ids": [item["id"] for item in payload["templates"]],
+        },
+    }
+
+
 def set_direction(
     task_dir: Path, manifest: dict[str, Any], params: dict[str, Any]
 ):
@@ -325,6 +402,8 @@ def write_generated_file(
     payload_text: str,
     purpose: str,
     source_ids: list[str],
+    template_reference: str,
+    design_rationale: str,
 ) -> None:
     source_label = ", ".join(source_ids) if source_ids else "无；本文件为明确任务假设"
     if file_format in {"markdown", "text"}:
@@ -334,6 +413,8 @@ def write_generated_file(
             "文件性质：任务设定/来源整理生成附件，不是外部出版物。\n"
             f"用途：{purpose}\n"
             f"来源候选：{source_label}\n\n"
+            f"结构参考：{template_reference}\n"
+            f"设计说明：{design_rationale}\n\n"
         )
         path.write_text(prefix + payload_text.strip() + "\n", encoding="utf-8")
         return
@@ -350,6 +431,8 @@ def write_generated_file(
             writer.writerow(["文件性质", "任务设定/来源整理生成附件，不是外部出版物"])
             writer.writerow(["用途", purpose])
             writer.writerow(["来源候选", source_label])
+            writer.writerow(["结构参考", template_reference])
+            writer.writerow(["设计说明", design_rationale])
             writer.writerow([])
             for row in rows:
                 if not isinstance(row, list) or len(row) > 100:
@@ -362,20 +445,36 @@ def write_generated_file(
         raise ValueError('XLSX payload must contain 1-10 entries in "sheets"')
     workbook = openpyxl.Workbook()
     workbook.remove(workbook.active)
+    workbook.properties.creator = "GDPval Stage 2"
+    workbook.properties.title = purpose
+    workbook.properties.subject = "任务设定/来源整理生成附件"
+    workbook.properties.description = (
+        f"依据 {FINANCIAL_SKILL_NAME} 与 {template_reference} 的结构原则生成。"
+    )
     info = workbook.create_sheet("说明")
     info_rows = [
         ["文件性质", "任务设定/来源整理生成附件，不是外部出版物"],
         ["用途", purpose],
         ["来源候选", source_label],
+        ["结构参考", template_reference],
+        ["设计说明", design_rationale],
+        ["使用边界", "仅借鉴模板结构和版式，不复制模板主体、数据或结论"],
     ]
     for row in info_rows:
         info.append(row)
-    info.column_dimensions["A"].width = 16
-    info.column_dimensions["B"].width = 80
-    for cell in info[1]:
-        cell.font = Font(bold=True)
+    info.sheet_view.showGridLines = False
+    info.column_dimensions["A"].width = 18
+    info.column_dimensions["B"].width = 88
+    for row in info.iter_rows():
+        row[0].font = Font(name="宋体", bold=True, color="FFFFFF")
+        row[0].fill = PatternFill("solid", fgColor="404040")
+        row[0].alignment = Alignment(horizontal="center", vertical="center")
+        row[1].font = Font(name="宋体", color="000000")
+        row[1].alignment = Alignment(vertical="top", wrap_text=True)
 
     used_names = {"说明"}
+    black = Side(style="medium", color="000000")
+    thin = Side(style="thin", color="000000")
     for sheet_spec in sheets:
         name = str(sheet_spec.get("name") or "").strip()
         rows = sheet_spec.get("rows")
@@ -390,6 +489,7 @@ def write_generated_file(
             raise ValueError(f"worksheet {name} must contain 1-5000 rows")
         used_names.add(name)
         worksheet = workbook.create_sheet(name)
+        worksheet.sheet_view.showGridLines = False
         max_columns = 0
         for row in rows:
             if not isinstance(row, list) or len(row) > 100:
@@ -400,14 +500,44 @@ def write_generated_file(
             worksheet.append(values)
             max_columns = max(max_columns, len(values))
         worksheet.freeze_panes = "A2"
+        worksheet.auto_filter.ref = worksheet.dimensions
+        worksheet.print_title_rows = "1:1"
+        worksheet.sheet_properties.pageSetUpPr.fitToPage = True
+        worksheet.page_setup.orientation = "landscape"
+        worksheet.page_setup.fitToWidth = 1
+        worksheet.page_margins.left = 0.3
+        worksheet.page_margins.right = 0.3
+        worksheet.page_margins.top = 0.5
+        worksheet.page_margins.bottom = 0.5
         for cell in worksheet[1]:
-            cell.font = Font(bold=True, color="FFFFFF")
-            cell.fill = PatternFill("solid", fgColor="1F4E78")
-            cell.alignment = Alignment(horizontal="center")
+            cell.font = Font(name="宋体", bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor="404040")
+            cell.alignment = Alignment(
+                horizontal="center", vertical="center", wrap_text=True
+            )
+            cell.border = Border(top=black, bottom=thin)
+        worksheet.row_dimensions[1].height = 28
+        if worksheet.max_row >= 2:
+            for cell in worksheet[worksheet.max_row]:
+                cell.border = Border(bottom=black)
+        for row in worksheet.iter_rows(min_row=2):
+            for cell in row:
+                cell.font = Font(name="宋体", color="000000")
+                cell.alignment = Alignment(
+                    horizontal="right"
+                    if isinstance(cell.value, (int, float))
+                    else "left",
+                    vertical="center",
+                    wrap_text=True,
+                )
         for column in range(1, max_columns + 1):
-            worksheet.column_dimensions[
-                openpyxl.utils.get_column_letter(column)
-            ].width = 18
+            letter = openpyxl.utils.get_column_letter(column)
+            values = [
+                str(worksheet.cell(row=row, column=column).value or "")
+                for row in range(1, min(worksheet.max_row, 200) + 1)
+            ]
+            width = min(36, max(10, max((len(value) for value in values), default=8) + 2))
+            worksheet.column_dimensions[letter].width = width
     workbook.save(path)
     workbook.close()
 
@@ -417,6 +547,9 @@ def create_generated(
 ):
     if not (task_dir / "working" / "direction_plan.json").is_file():
         raise ValueError("set_task_direction must be completed first")
+    resources_path = task_dir / "working" / "financial_resources.json"
+    if not resources_path.is_file():
+        raise ValueError("financial_resource_inventory must be completed first")
     filename = clean_filename(params["filename"])
     file_format = str(params["format"])
     expected_extension = GENERATED_EXTENSIONS.get(file_format)
@@ -437,6 +570,23 @@ def create_generated(
     for document_id in source_ids:
         candidate_by_id(manifest, document_id)
     payload_text = str(params.get("payload") or "")
+    template_reference = str(params.get("templateReference") or "").strip()
+    design_rationale = str(params.get("designRationale") or "").strip()
+    if len(design_rationale) < 40:
+        raise ValueError(
+            "designRationale must explain how the selected template is adapted"
+        )
+    resource_catalog = json.loads(resources_path.read_text(encoding="utf-8"))
+    templates_by_id = {
+        item["id"]: item for item in resource_catalog.get("templates", [])
+    }
+    if template_reference not in templates_by_id:
+        raise ValueError(f"unknown financial template reference: {template_reference}")
+    if file_format not in templates_by_id[template_reference]["stage2_formats"]:
+        raise ValueError(
+            f"template {template_reference} does not support Stage 2 "
+            f"{file_format} files"
+        )
 
     generated_dir = task_dir / "generated"
     generation_manifest_path = generated_dir / "_generation_manifest.json"
@@ -460,6 +610,8 @@ def create_generated(
             payload_text,
             purpose,
             source_ids,
+            template_reference,
+            design_rationale,
         )
         temporary.replace(target)
         existing[filename] = {
@@ -467,6 +619,9 @@ def create_generated(
             "format": file_format,
             "purpose": purpose,
             "source_document_ids": source_ids,
+            "skill_reference": FINANCIAL_SKILL_NAME,
+            "template_reference": template_reference,
+            "design_rationale": design_rationale,
             "sha256": sha256(target),
         }
         generation_manifest["files"] = sorted(
@@ -569,6 +724,9 @@ def assemble(
                     "expected_use": expected_use,
                     "purpose": generated["purpose"],
                     "source_document_ids": generated["source_document_ids"],
+                    "skill_reference": generated["skill_reference"],
+                    "template_reference": generated["template_reference"],
+                    "design_rationale": generated["design_rationale"],
                 }
             )
         if source_key in seen_sources:
@@ -637,6 +795,10 @@ def assemble(
             }
             write_json(internal_dir / "selection_manifest.json", selection)
             shutil.copy2(direction_path, internal_dir / "direction_plan.json")
+            shutil.copy2(
+                task_dir / "working" / "financial_resources.json",
+                internal_dir / "financial_resources.json",
+            )
             if final_dir.exists():
                 shutil.rmtree(final_dir)
             staging.replace(final_dir)
@@ -706,6 +868,7 @@ ACTIONS = {
     "read_candidate": read_candidate,
     "search_evidence": search_evidence,
     "set_task_direction": set_direction,
+    "financial_resource_inventory": financial_resources,
     "create_generated_attachment": create_generated,
     "assemble_final_attachments": assemble,
     "finalize_task": finalize,

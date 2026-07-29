@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "templates": [
+    {
+      "id": "financial-analysis-report-doc",
+      "filename": "A财务分析报告模板.doc",
+      "stage2_formats": ["markdown", "text"],
+      "golden_formats": ["docx", "pdf"],
+      "usage": "借鉴正式财务分析报告的封面、章节层级、指标表、来源注和结论组织，不复制模板中的主体名称或数据。"
+    },
+    {
+      "id": "business-plan-doc",
+      "filename": "“创青春”全国大学生创业计划竞赛-银奖作品（机械）.doc",
+      "stage2_formats": ["markdown", "text"],
+      "golden_formats": ["docx", "pdf", "pptx"],
+      "usage": "借鉴完整商业计划的叙事顺序、市场与运营衔接、风险章节及附录组织，不沿用示例项目事实。"
+    },
+    {
+      "id": "feasibility-report-doc",
+      "filename": "可行性研究报告Word模板.doc",
+      "stage2_formats": ["markdown", "text"],
+      "golden_formats": ["docx", "pdf"],
+      "usage": "借鉴可行性研究的背景、方案、投资、效益、风险和实施条件结构，所有结论仍由题目附件支持。"
+    },
+    {
+      "id": "investment-comparison-xlsx",
+      "filename": "投资方案比较.xlsx",
+      "stage2_formats": ["csv", "xlsx"],
+      "golden_formats": ["xlsx", "csv"],
+      "usage": "借鉴多方案输入、现金流、评价指标和横向对比矩阵的工作表布局，保留输入与计算区域边界。"
+    },
+    {
+      "id": "valuation-model-xlsx",
+      "filename": "腾讯控股财务预测估值模型.xlsx",
+      "stage2_formats": ["xlsx"],
+      "golden_formats": ["xlsx"],
+      "usage": "借鉴说明页、核心数据、业务拆分、三张报表、假设、估值和结果页的多层模型结构，不复制公司数据。"
+    },
+    {
+      "id": "financial-statement-analysis-xls",
+      "filename": "财务报表分析系列模板.xls",
+      "stage2_formats": ["csv", "xlsx"],
+      "golden_formats": ["xlsx", "csv"],
+      "usage": "借鉴财务报表标准化、比率分析、趋势比较和结果汇总结构，明确单位、期间及来源。"
+    }
+  ]
+}

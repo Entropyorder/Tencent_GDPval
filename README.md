@@ -24,7 +24,7 @@ workflows/
 │   └── README.md
 └── stage3_golden_solution/       # 负责人 C：Golden Solution
     ├── run.py
-    ├── run_claude_golden_solution.sh
+    ├── run_pi_golden_solution.sh
     ├── validate_golden_solution.py
     └── README.md
 ```
@@ -43,7 +43,9 @@ workflows/
 ```text
 腾讯_GDPval金法医/
 ├── data/
-│   └── source_documents/        # 379 个原始文件
+│   └── source_documents/        # 本地原始文件，不上传 Git
+├── financial-analysis/          # 六个真实 Word/Excel 结构模板
+├── financial-analysis-report-skill/ # 自然财务写作与 Word 生成 Skill
 ├── prompts/                     # Stage 1/3 中文提示词
 ├── src/finance_forensics/       # 文档抽取、编目、query 和检索核心库
 ├── workflows/                   # 三个隔离工作流
@@ -54,7 +56,7 @@ workflows/
 └── output/                      # 全部业务输出
 ```
 
-`data/source_documents/` 用于在本地存放 379 个原始文件。Git 仓库只提交该
+`data/source_documents/` 用于在本地存放原始文件。Git 仓库只提交该
 目录的 `.gitkeep` 占位文件，不上传原始文档。
 
 现有 `output/tasks/task_001`、`task_002` 及其最终产物保持原位置不变。
@@ -66,8 +68,8 @@ cd /home/ghpan/project/腾讯_GDPval金法医
 source .venv/bin/activate
 ```
 
-Inferera Base URL、模型和 API 密钥从权限为 `600` 的 `.env` 读取。Pi 和
-Stage 3 的 Claude Code 均使用 `.env` 中配置的模型；密钥不写入 Skill、
+Inferera Base URL、模型和 API 密钥从权限为 `600` 的 `.env` 读取。Stage 2
+和 Stage 3 的 Pi CLI 均使用 `.env` 中配置的模型；密钥不写入 Skill、
 提示词、代码或输出。
 
 粗 query 生成会读取对应源文件的正文抽样，默认使用独立的
@@ -202,6 +204,10 @@ npm ci --ignore-scripts
 “任务背景、具体任务、交付要求”三段，其中“具体任务”只能用一个整体叙述
 段落，不列步骤或具体分析方法，交付文件不超过5个。
 
+合成附件生成前，Pi 必须读取财务报告 Skill 和真实模板资源清单。每个合成文件
+记录模板 ID 与适配理由；工具只借鉴结构、版式、sheet 分层和职业文档习惯，
+不复制模板中的主体、数据或结论。
+
 验收已有题目：
 
 ```bash
@@ -218,8 +224,9 @@ npm ci --ignore-scripts
   --task-index 2
 ```
 
-Stage 3 实际创建 query 指定的交付文件，并校验文件可打开、内容完整性、
-Excel 公式、来源追踪和哈希。验收已有结果：
+Stage 3 同时加载 Golden Solution Skill 与财务分析报告 Skill，按真实模板组织
+Word/Excel 文件，并实际创建 query 指定的交付物。校验覆盖文件可打开性、内容
+完整性、Excel 公式、来源追踪、模板使用记录和哈希。验收已有结果：
 
 ```bash
 .venv/bin/python workflows/stage3_golden_solution/validate_golden_solution.py \

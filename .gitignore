@@ -9,6 +9,16 @@ output/
 node_modules/
 data/source_documents/*
 !data/source_documents/.gitkeep
+data/*.zip
+data/unzip_*/
+financial-analysis-report-skill/.DS_Store
+financial-analysis-report-skill/docs/
+financial-analysis-report-skill/internal/
+financial-analysis-report-skill/examples/*.docx
+financial-analysis-report-skill/examples/financial_data.json
+financial-analysis-report-skill/run_sample.*
+financial-analysis-report-skill/scripts/.DS_Store
+financial-analysis-report-skill/scripts/custom_report.py
 workflows/stage2_task_builder/pi-agent/auth.json
 workflows/stage2_task_builder/pi-agent/sessions/
 workflows/stage2_task_builder/pi-agent/*.lock

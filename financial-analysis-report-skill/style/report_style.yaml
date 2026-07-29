@@ -1,0 +1,45 @@
+version: "1.0.0"
+locale: zh-CN
+page:
+  size: A4
+  orientation: portrait
+  margins_cm:
+    top: 2.6
+    bottom: 2.4
+    left: 3.0
+    right: 2.6
+fonts:
+  body:
+    chinese: SimSun
+    latin: Times New Roman
+    size_pt: 12
+  table:
+    chinese: SimSun
+    latin: Times New Roman
+    size_pt: 10.5
+  title:
+    chinese: SimHei
+    latin: Times New Roman
+    size_pt: 22
+paragraph:
+  alignment: justify
+  line_spacing: 1.5
+  first_line_indent_pt: 24
+  space_before_pt: 0
+  space_after_pt: 0
+table:
+  style: black_three_line
+  top_border_pt: 1.5
+  header_bottom_border_pt: 0.75
+  bottom_border_pt: 1.5
+  vertical_borders: false
+  internal_horizontal_borders: false
+  shading: none
+  repeat_header: true
+  split_rows_across_pages: false
+number_format:
+  currency_locale: zh-CN
+  thousands_separator: true
+  negative_style: parentheses
+  percentage_decimals: 1
+  ratio_decimals: 2

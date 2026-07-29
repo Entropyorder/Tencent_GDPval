@@ -157,6 +157,7 @@ export default function (pi: ExtensionAPI) {
     promptSnippet: "生成受控的任务假设或来源整理附件",
     promptGuidelines: [
       "必须调用 create_generated_attachment 并在最终附件中实际选用1至3个；不得生成核心答案。",
+      "生成前必须调用 financial_resource_inventory；每个文件都要选择兼容的 templateReference，并说明如何只借鉴结构和版式。",
       "CSV payload 使用 {\"rows\":[[...]]}；XLSX payload 使用 {\"sheets\":[{\"name\":\"...\",\"rows\":[[...]]}]}。",
     ],
     parameters: Type.Object({
@@ -166,6 +167,16 @@ export default function (pi: ExtensionAPI) {
       sourceDocumentIds: Type.Array(Type.String(), {
         minItems: 0,
         maxItems: 20,
+      }),
+      templateReference: Type.String({
+        minLength: 1,
+        description:
+          "financial_resource_inventory 返回的模板ID，必须与生成格式兼容。",
+      }),
+      designRationale: Type.String({
+        minLength: 40,
+        description:
+          "说明借鉴了模板的哪些真实业务结构，以及如何避免复制模板数据或预先泄漏答案。",
       }),
       payload: Type.String({
         minLength: 1,
@@ -177,6 +188,28 @@ export default function (pi: ExtensionAPI) {
       return callBackend(
         pi,
         "create_generated_attachment",
+        params,
+        ctx.cwd,
+        signal,
+      );
+    },
+  });
+
+  pi.registerTool({
+    name: "financial_resource_inventory",
+    label: "Financial Resource Inventory",
+    description:
+      "读取财务分析报告Skill和六个真实Word/Excel模板的受控清单、适用格式、用途、大小与哈希，并在工作区记录已咨询资源。确定题目方向后、生成附件前必须调用。",
+    promptSnippet: "查看财务报告Skill与真实模板资源",
+    promptGuidelines: [
+      "只借鉴模板结构、版式和职业文档习惯，不得复制模板中的公司、项目、数值或结论。",
+      "根据合成附件的实际用途选择兼容模板，不要为了套模板改变题目方向。",
+    ],
+    parameters: Type.Object({}),
+    async execute(_id, params, signal, _update, ctx) {
+      return callBackend(
+        pi,
+        "financial_resource_inventory",
         params,
         ctx.cwd,
         signal,

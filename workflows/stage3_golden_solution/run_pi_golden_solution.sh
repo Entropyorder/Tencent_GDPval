@@ -31,11 +31,15 @@ export PI_CODING_AGENT_DIR="$WORKFLOW_DIR/pi-agent"
 export PI_OFFLINE=1
 export PI_TELEMETRY=0
 export GDPVAL_PYTHON="${GDPVAL_PYTHON:-$PROJECT_ROOT/.venv/bin/python}"
+export GDPVAL_PROJECT_ROOT="$PROJECT_ROOT"
+export GDPVAL_FINANCIAL_REPORT_SKILL_DIR="$PROJECT_ROOT/financial-analysis-report-skill"
+export GDPVAL_FINANCIAL_TEMPLATE_DIR="$PROJECT_ROOT/financial-analysis"
 
 TASKS_DIR="$(cd "$TASKS_DIR" && pwd)"
 TASK_DIR="$TASKS_DIR/task_$TASK_ID"
 LOG_DIR="$TASKS_DIR/logs"
 SKILL_FILE="$WORKFLOW_DIR/pi-agent/skills/golden-solution/SKILL.md"
+FINANCIAL_SKILL_FILE="$GDPVAL_FINANCIAL_REPORT_SKILL_DIR/SKILL.md"
 
 if [[ ! -f "$TASK_DIR/final/query.md" ]]; then
   echo "final task is not prepared: $TASK_DIR" >&2
@@ -47,6 +51,14 @@ if [[ "$MODE" == "create" && -e "$TASK_DIR/golden solution" ]]; then
 fi
 if [[ "$MODE" == "--repair" && ! -d "$TASK_DIR/golden solution" ]]; then
   echo "golden solution does not exist: $TASK_DIR/golden solution" >&2
+  exit 1
+fi
+if [[ ! -f "$FINANCIAL_SKILL_FILE" ]]; then
+  echo "financial report skill is missing: $FINANCIAL_SKILL_FILE" >&2
+  exit 1
+fi
+if [[ ! -f "$GDPVAL_FINANCIAL_TEMPLATE_DIR/template_manifest.json" ]]; then
+  echo "financial template manifest is missing" >&2
   exit 1
 fi
 
@@ -66,10 +78,12 @@ run_pi () {
     --no-context-files \
     --no-skills \
     --skill "$SKILL_FILE" \
+    --skill "$FINANCIAL_SKILL_FILE" \
+    --append-system-prompt "$FINANCIAL_SKILL_FILE" \
     --no-prompt-templates \
     --provider inferera \
     --model "$INFERERA_MODEL" \
-    "$1" \
+    "/skill:golden-solution $1" \
     > "$LOG_DIR/task_${TASK_ID}_golden.jsonl" \
     2> "$LOG_DIR/task_${TASK_ID}_golden.stderr.log"
 }
@@ -83,7 +97,7 @@ validate () {
 
 if [[ "$MODE" == "create" ]]; then
   set +e
-  run_pi "执行当前题目的完整 Golden Solution。严格遵守 SKILL，实际创建 query 指定的全部交付文件与 golden solution/internal 三件质量文件，并自跑外部校验通过后结束。"
+  run_pi "执行当前题目的完整 Golden Solution。严格遵守两个已加载的 SKILL，使用财务 Skill 与真实模板提高文件自然度和专业真实性，实际创建 query 指定的全部交付文件与 golden solution/internal 质量文件，并自跑外部校验通过后结束。"
   PI_STATUS=$?
   set -e
   if [[ "$PI_STATUS" -ne 0 ]]; then

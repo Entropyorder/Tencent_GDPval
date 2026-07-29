@@ -15,3 +15,9 @@ Python 实现。
 Stage 1 的通用查询提示词和 Stage 3 的黄金答案提示词位于根目录 `prompts/`。
 Stage 2 的流程规则按 Pi Agent Skills 标准保存在其自己的
 `pi-agent/skills/gdpval-task-builder/SKILL.md`。
+
+Stage 2 和 Stage 3 共享根目录 `financial-analysis-report-skill/` 与
+`financial-analysis/`。前者提供自然财务写作、正式 Word 版式和结构校验，后者
+提供六个真实 Word/Excel 模板。Stage 2 将资源引用固化进
+`final/internal/financial_resources.json`，Stage 3 通过
+`golden solution/internal/resource_usage.json` 记录实际应用。

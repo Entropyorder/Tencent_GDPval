@@ -15,6 +15,9 @@ description: 在当前task_NNN工作区读取Stage2已固化的final/query.md与
 - `$GDPVAL_PYTHON`：项目虚拟环境解释器（用它跑 Python，保证依赖与编码一致）。
 - `$GDPVAL_STAGE3_DIR`：Stage3 工作流目录绝对路径，本目录下的支撑脚本/模板/参考都在此。
 - `$GDPVAL_TASKS_DIR`：tasks 目录绝对路径（= 当前题目目录的父目录）。
+- `$GDPVAL_PROJECT_ROOT`：项目根目录。
+- `$GDPVAL_FINANCIAL_REPORT_SKILL_DIR`：自然财务写作与 Word 生成 Skill。
+- `$GDPVAL_FINANCIAL_TEMPLATE_DIR`：真实财务 Word/Excel 模板和资源清单。
 - 当前题目编号 `$TASK_ID`、当前题目目录 `$PWD`（= `$GDPVAL_TASKS_DIR/task_$TASK_ID`）。
 
 支撑脚本：
@@ -27,6 +30,11 @@ description: 在当前task_NNN工作区读取Stage2已固化的final/query.md与
 
 模板在 `$GDPVAL_STAGE3_DIR/templates/{legal,business,general}/`；参考风格包在
 `$GDPVAL_STAGE3_DIR/references/style-semi-2026Q1.md`。
+
+财务类交付同时使用 `generating-financial-analysis-reports` Skill 和
+`$GDPVAL_FINANCIAL_TEMPLATE_DIR/template_manifest.json`。launcher 已加载两个
+Skill；本 Skill 负责事实、公式、来源和交付闭环，财务报告 Skill 负责自然写作、
+正式 Word 版式和三线表。
 
 ## 一、角色与目标
 
@@ -64,7 +72,40 @@ description: 在当前task_NNN工作区读取Stage2已固化的final/query.md与
    Excel 中保留**活公式**（`cell.data_type=='f'`），不得只粘贴最终数值，更不得
    把 `=B4*B5` 写成文本字符串。
 
-## 四、交付文件创建
+## 四、财务 Skill 与真实模板
+
+创建交付物前：
+
+1. 读取 `final/internal/financial_resources.json`；新 Stage 2 任务必须存在。兼容
+   旧任务而不存在时，读取
+   `$GDPVAL_FINANCIAL_TEMPLATE_DIR/template_manifest.json`。
+2. 读取 `$GDPVAL_FINANCIAL_REPORT_SKILL_DIR/SKILL.md`；财务报告还要读取
+   `references/financial_writing_guide.md` 与 `references/format_spec.md`。
+3. 为每个 Word/Excel/PDF/PPTX/CSV 交付物选择一个格式兼容的模板 ID。只借鉴
+   结构、版式、sheet 分层和职业文档习惯，不得复制模板中的企业、项目、数据、
+   公式结果或结论。
+4. 需要核对模板时，不用 Read 直接读取二进制。Excel 用 openpyxl 查看 sheet、
+   冻结窗格、公式和样式；旧 Word 可通过项目提取器抽取标题：
+
+   ```bash
+   PYTHONPATH="$GDPVAL_PROJECT_ROOT/src" "$GDPVAL_PYTHON" -c \
+     'from finance_forensics.extractors import extract_document; import sys; print(extract_document(sys.argv[1], 12000).text)' \
+     "$GDPVAL_FINANCIAL_TEMPLATE_DIR/A财务分析报告模板.doc"
+   ```
+
+5. 财务 Word 报告优先复用财务 Skill 的 `report_style.py` 排版原语。只有当附件
+   数据完整满足 `examples/sample_financial_data.json` 的字段契约，且报告确实是
+   通用管理财务分析时，才直接调用 `render_report.py`；不得为了套生成器补造数据。
+6. Excel 模型借鉴真实模板的“说明/来源—输入—计算—情景—结果—检查”分层，
+   按题目删减，不机械复制十九个 sheet。输入、公式和判断分区清楚，工作表名称
+   应贴合本题业务而不是出现模板原公司的名称。
+
+自然与逼真不等于装饰复杂。正文使用“结论—证据—原因—边界—行动”分析链，
+表格与正文互相解释；Excel 保留正常财务人员会使用的说明页、版本日期、单位、
+期间、来源、冻结窗格、筛选、数字格式、打印设置和质量检查。不得使用模板腔、
+空泛结尾、无来源行业均值或重复复述每个数字。
+
+## 五、交付文件创建
 
 从 query 的"交付要求"或 `task_metadata.deliverable_files` 解析 1–5 个具名文件，在
 `golden solution/` 根目录逐一创建。**文件名必须与 query 完全一致**。
@@ -136,7 +177,7 @@ description: 在当前task_NNN工作区读取Stage2已固化的final/query.md与
 不得用蓝色（如 `1F4E78`）。外部校验器会后置扫描 fill/font color，非灰
 （RGB 三通道差>20）记违规。
 
-## 五、内部质量文件
+## 六、内部质量文件
 
 除 query 指定的用户交付文件外，在 `golden solution/internal/` 创建：
 
@@ -150,10 +191,15 @@ description: 在当前task_NNN工作区读取Stage2已固化的final/query.md与
    ```bash
    "$GDPVAL_PYTHON" -c "import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "<交付文件>"
    ```
+4. `resource_usage.json`：新 Stage 2 任务必须记录：
+   - `skill.name` 固定为 `generating-financial-analysis-reports`；
+   - `skill.applied_to` 覆盖全部交付文件，并列出实际采用的写作/版式原则；
+   - `templates` 中逐项记录模板 `id`、`applied_to`、具体 `adaptations`；
+   - `copied_source_data` 必须为 `false`。
 
 内部文件不属于 query 所说的一至五个用户交付物。
 
-## 六、质量门槛与自检
+## 七、质量门槛与自检
 
 完成前必须逐项检查：
 
@@ -165,10 +211,11 @@ description: 在当前task_NNN工作区读取Stage2已固化的final/query.md与
 5. 每项关键结论能追溯到附件或明确的任务假设；
 6. 不改动 `final/`、`attachments/`、`_extracted/` 或题目其他已有文件；
 7. 所有输出只能写入 `golden solution/`。
+8. `resource_usage.json` 中的模板与交付格式兼容，且没有模板主体或数据残留。
 
-## 七、完成闭环
+## 八、完成闭环
 
-写完所有交付文件和 internal/ 三件后，**自跑外部校验器**：
+写完所有交付文件和 internal/ 质量文件后，**自跑外部校验器**：
 
 ```bash
 "$GDPVAL_PYTHON" "$GDPVAL_STAGE3_DIR/validate_golden_solution.py" \
@@ -179,5 +226,5 @@ description: 在当前task_NNN工作区读取Stage2已固化的final/query.md与
 - 若失败：按校验输出**只修校验指出的问题**（不改 query、附件、已正确的结论），
   修完重跑。编排器最多再喂 2 轮外部修复，你应在第一轮自检时尽量一次过。
 
-完成实际文件、internal/ 三件、且自跑校验通过后才可以结束。不得以"已完成""校验通过"
+完成实际文件、internal/ 质量文件、且自跑校验通过后才可以结束。不得以"已完成""校验通过"
 等模型自述替代实际校验结果。

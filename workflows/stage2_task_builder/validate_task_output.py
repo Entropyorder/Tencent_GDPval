@@ -204,12 +204,44 @@ def validate_task(task_dir):
         item["document_id"]: item for item in manifest["candidates"]
     }
     generated_count = 0
+    resource_contract_path = (
+        task_dir / "final" / "internal" / "financial_resources.json"
+    )
+    resource_contract = (
+        json.loads(resource_contract_path.read_text(encoding="utf-8"))
+        if resource_contract_path.is_file()
+        else None
+    )
+    template_ids = (
+        {item["id"] for item in resource_contract.get("templates", [])}
+        if resource_contract
+        else set()
+    )
     for item in selected_records:
         path = attachments_dir / item["filename"]
         if item.get("sha256") != sha256(path):
             raise ValueError(f"{task_dir.name}: SHA-256 mismatch for {path.name}")
         if item.get("origin") == "generated":
             generated_count += 1
+            if resource_contract:
+                if (
+                    item.get("skill_reference")
+                    != "generating-financial-analysis-reports"
+                ):
+                    raise ValueError(
+                        f"{task_dir.name}: generated file does not record "
+                        "the financial report skill"
+                    )
+                if item.get("template_reference") not in template_ids:
+                    raise ValueError(
+                        f"{task_dir.name}: generated file has an invalid "
+                        "financial template reference"
+                    )
+                if len(str(item.get("design_rationale") or "")) < 40:
+                    raise ValueError(
+                        f"{task_dir.name}: generated file lacks a template "
+                        "adaptation rationale"
+                    )
             continue
         if item.get("origin") != "candidate":
             raise ValueError(f"{task_dir.name}: invalid origin for {path.name}")
@@ -234,6 +266,10 @@ def validate_task(task_dir):
             f"{task_dir.name}: expected at least 1 generated file in the "
             "final attachment set"
         )
+    if resource_contract and resource_contract.get("skill", {}).get("name") != (
+        "generating-financial-analysis-reports"
+    ):
+        raise ValueError(f"{task_dir.name}: invalid financial resource contract")
     if not (task_dir / "final" / "internal" / "evidence_matrix.md").is_file():
         raise FileNotFoundError(f"{task_dir.name}: missing evidence_matrix.md")
     if not (task_dir / "final" / "internal" / "quality_review.md").is_file():

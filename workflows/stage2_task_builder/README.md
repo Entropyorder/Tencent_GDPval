@@ -5,7 +5,8 @@
 1. 读取 Stage 1 的 Top 20 清单。
 2. 创建相互隔离的任务工作区并抽取候选全文。
 3. 使用 Pi CLI、项目 Skill 和受控自定义工具确定题目方向。
-4. 从20个候选中选择文件，并生成且实际选用1至3个辅助文件。
+4. 查看财务报告 Skill 与真实 Word/Excel 模板，生成并实际选用1至3个自然、
+   逼真的辅助文件。
 5. 固化10至17个最终附件，按最终顺序重新编号。
 6. 反向生成至少12步的 workflow 和整体叙述式三段 query。
 7. 生成选择清单、证据矩阵和质量审查，并执行确定性验收。
@@ -50,6 +51,7 @@ Pi 使用 `--no-builtin-tools`，不能调用通用 shell、write 或 edit。全
 | `read_candidate` | 按rank读取抽取全文片段 |
 | `search_evidence` | 跨候选搜索证据、口径和冲突 |
 | `set_task_direction` | 保存至少两个方向并确定最终方向 |
+| `financial_resource_inventory` | 查看财务报告 Skill 和六个真实模板并记录资源契约 |
 | `create_generated_attachment` | 生成受控的MD/TXT/CSV/XLSX辅助附件 |
 | `assemble_final_attachments` | 复制并连续编号最终附件、计算哈希并写选择清单 |
 | `finalize_task` | 分别写workflow、query和审计材料并运行验收 |
@@ -111,6 +113,8 @@ Pi 使用 `--no-builtin-tools`，不能调用通用 shell、write 或 edit。全
 
 `query.json` 只包含一条 `query`；`query.md` 与其文本严格一致。每道新任务
 必须创建并在最终附件中实际使用1至3个生成附件；只创建但未装配不算合格。
+每个生成附件必须引用 `financial-analysis/template_manifest.json` 中一个兼容模板，
+并记录适配理由。工具只借鉴模板结构和版式，不复制模板主体、数据或结论。
 query 必须
 包含“任务背景、具体任务、交付要求”三段，其中“具体任务”是120至320字的
 单一整体叙述段落，不得包含列表、工作步骤或具体方法。详细方法写入

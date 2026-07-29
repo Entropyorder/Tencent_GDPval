@@ -22,6 +22,7 @@ PLACEHOLDER_PATTERN = re.compile(
     re.IGNORECASE,
 )
 NESTED_FORMULA_EQUALS_PATTERN = re.compile(r"=[A-Z][A-Z0-9_.]*\(")
+FINANCIAL_SKILL_NAME = "generating-financial-analysis-reports"
 
 
 def _is_grey_hex(hexstr):
@@ -223,6 +224,81 @@ def inspect_file(path):
     return {"text_chars": len(text)}
 
 
+def validate_financial_resource_usage(task_dir, internal_dir, filenames):
+    contract_path = task_dir / "final" / "internal" / "financial_resources.json"
+    if not contract_path.is_file():
+        return None
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    usage_path = internal_dir / "resource_usage.json"
+    if not usage_path.is_file() or usage_path.stat().st_size == 0:
+        raise FileNotFoundError(usage_path)
+    usage = json.loads(usage_path.read_text(encoding="utf-8"))
+
+    skill = usage.get("skill", {})
+    if skill.get("name") != FINANCIAL_SKILL_NAME:
+        raise ValueError("resource usage does not record the financial report skill")
+    applied_to = set(skill.get("applied_to", []))
+    if applied_to != set(filenames):
+        raise ValueError(
+            "financial report skill must be recorded for every deliverable"
+        )
+    principles = skill.get("principles", [])
+    if not isinstance(principles, list) or not principles:
+        raise ValueError("resource usage must list applied financial skill principles")
+
+    templates_by_id = {
+        item["id"]: item for item in contract.get("templates", [])
+    }
+    template_usage = usage.get("templates", [])
+    if not isinstance(template_usage, list) or not template_usage:
+        raise ValueError("resource usage must record at least one real template")
+    office_deliverables = {
+        filename
+        for filename in filenames
+        if Path(filename).suffix.lower()
+        in {".docx", ".xlsx", ".pdf", ".pptx", ".csv"}
+    }
+    template_coverage = set()
+    for item in template_usage:
+        resource_id = item.get("id")
+        if resource_id not in templates_by_id:
+            raise ValueError(
+                f"unknown financial template in resource usage: {resource_id}"
+            )
+        targets = set(item.get("applied_to", []))
+        if not targets or not targets.issubset(set(filenames)):
+            raise ValueError(
+                f"invalid applied_to for financial template: {resource_id}"
+            )
+        allowed_formats = set(
+            templates_by_id[resource_id].get("golden_formats", [])
+        )
+        for filename in targets:
+            file_format = Path(filename).suffix.lower().removeprefix(".")
+            if file_format not in allowed_formats:
+                raise ValueError(
+                    f"template {resource_id} is incompatible with {filename}"
+                )
+        adaptations = item.get("adaptations", [])
+        if not isinstance(adaptations, list) or not adaptations:
+            raise ValueError(f"template {resource_id} lacks recorded adaptations")
+        if item.get("copied_source_data") is not False:
+            raise ValueError(
+                f"template {resource_id} must declare copied_source_data=false"
+            )
+        template_coverage.update(targets)
+    if not office_deliverables.issubset(template_coverage):
+        missing = sorted(office_deliverables - template_coverage)
+        raise ValueError(
+            f"deliverables lack a compatible template reference: {missing}"
+        )
+    return {
+        "skill": FINANCIAL_SKILL_NAME,
+        "templates": len(template_usage),
+        "covered_deliverables": len(template_coverage),
+    }
+
+
 def validate(task_dir, strict_bw="warn"):
     final_dir = task_dir / "final"
     golden_dir = task_dir / "golden solution"
@@ -273,6 +349,10 @@ def validate(task_dir, strict_bw="warn"):
         if record.get("bytes") != inspection["bytes"]:
             raise ValueError(f"{filename}: solution manifest byte size mismatch")
 
+    financial_resources = validate_financial_resource_usage(
+        task_dir, internal_dir, filenames
+    )
+
     # B/W 后置检查：扫描所有 docx/xlsx 的非灰底纹与字体颜色。
     bw_violations = {}
     for filename, inspection in inspections.items():
@@ -295,6 +375,7 @@ def validate(task_dir, strict_bw="warn"):
         "deliverables": len(filenames),
         "files": inspections,
         "bw_violations": bw_violations,
+        "financial_resources": financial_resources,
     }
 
 

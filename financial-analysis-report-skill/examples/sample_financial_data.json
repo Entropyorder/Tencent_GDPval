@@ -1,0 +1,68 @@
+{
+  "company": {
+    "name": "华东智造科技有限公司",
+    "short_name": "华东智造"
+  },
+  "report": {
+    "title": "2025年度财务分析报告",
+    "period": "2025年1月1日至2025年12月31日",
+    "prepared_by": "财务管理中心",
+    "date": "2026年3月18日",
+    "data_nature": "模拟内部管理数据"
+  },
+  "unit": "万元",
+  "management_context": {
+    "growth_driver": "核心客户需求增长、新客户导入以及高附加值产品占比提升",
+    "investment_focus": "自动化产线改造、精密检测设备和新产品中试平台"
+  },
+  "current_period": {
+    "label": "2025年度",
+    "revenue": 48620,
+    "cost": 34580,
+    "gross_profit": 14040,
+    "selling_expense": 2860,
+    "administrative_expense": 3720,
+    "rd_expense": 2410,
+    "finance_expense": 690,
+    "operating_profit": 4050,
+    "net_profit": 3180,
+    "total_assets": 61500,
+    "current_assets": 34200,
+    "cash": 9200,
+    "accounts_receivable": 11380,
+    "inventory": 8750,
+    "total_liabilities": 32900,
+    "current_liabilities": 23600,
+    "interest_bearing_debt": 14800,
+    "equity": 28600,
+    "operating_cash_flow": 3760,
+    "investing_cash_flow": -4280,
+    "financing_cash_flow": 1520,
+    "capital_expenditure": 3980
+  },
+  "prior_period": {
+    "label": "2024年度",
+    "revenue": 43800,
+    "cost": 31820,
+    "gross_profit": 11980,
+    "selling_expense": 2740,
+    "administrative_expense": 3510,
+    "rd_expense": 2180,
+    "finance_expense": 610,
+    "operating_profit": 3220,
+    "net_profit": 2490,
+    "total_assets": 55800,
+    "current_assets": 30900,
+    "cash": 7450,
+    "accounts_receivable": 10520,
+    "inventory": 8230,
+    "total_liabilities": 30600,
+    "current_liabilities": 22100,
+    "interest_bearing_debt": 13600,
+    "equity": 25200,
+    "operating_cash_flow": 2940,
+    "investing_cash_flow": -3650,
+    "financing_cash_flow": 980,
+    "capital_expenditure": 3650
+  }
+}

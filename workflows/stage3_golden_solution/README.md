@@ -3,15 +3,17 @@
 ## 职责
 
 1. 读取 Stage 2 已验收的 query 和最终附件。
-2. 通过 **Pi CLI + Skill**（builtin 工具）实际创建 query 指定的 1 至 5 个交付文件。
+2. 通过 **Pi CLI + 双 Skill**（Golden Solution + 财务分析报告）实际创建 query
+   指定的 1 至 5 个交付文件。
 3. 生成内部来源追踪、质量报告和哈希清单。
 4. 检查文件可打开、内容长度、占位符、Excel 公式、清单哈希，并后置扫描黑白（B/W）。
 5. 发生确定性校验失败时，最多自动修复两轮。
 
 本阶段不得改变 Stage 2 的 query 或附件。结构镜像 Stage 2（`run_pi_task.sh` + Skill
 + 后置 validator），但**不锁定工具**：agent 使用 Pi 的通用工具（Read/Write/Edit/Bash/
-Glob/Grep）+ `golden-solution` Skill 引导；skill 的 `render.py`/`preextract_attachments.py`
-作为 agent 经 Bash 调用的支撑脚本。
+Glob/Grep）+ `golden-solution` Skill 引导；同时加载根目录
+`financial-analysis-report-skill/SKILL.md`，并使用 `financial-analysis/` 中的真实
+Word/Excel 模板作为结构和版式参考。模板只用于提高自然度，不复制原主体或数据。
 
 ## 运行
 
@@ -54,7 +56,8 @@ Python 依赖见项目 `pyproject.toml`，另需 `python-docx` / `openpyxl` / `p
 └── internal/
     ├── source_traceability.md
     ├── validation_report.json
-    └── solution_manifest.json
+    ├── solution_manifest.json
+    └── resource_usage.json       # 新 Stage 2 任务要求
 ```
 
 单独验收已有答案：
@@ -72,7 +75,11 @@ Python 依赖见项目 `pyproject.toml`，另需 `python-docx` / `openpyxl` / `p
 - `run.py` — 编排器：发现已完成 Stage 2 任务 → `run_pi_golden_solution.sh` → `validate_golden_solution.py`。
 - `run_pi_golden_solution.sh` — Pi 调用脚本（镜像 Stage 2 `run_pi_task.sh`，去掉 locked-tools flags，保留 builtin 工具；含 create + 2 轮 repair 循环）。
 - `pi-agent/models.json` — Pi 模型配置（inferera / deepseek-v4-flash）。
-- `pi-agent/skills/golden-solution/SKILL.md` — Skill 主体（角色/输入边界/工作方法/交付要求/内部质量文件/完成闭环）。launcher 注入 `$GDPVAL_PYTHON` / `$GDPVAL_STAGE3_DIR` / `$GDPVAL_TASKS_DIR` / `$TASK_ID` 供 agent 经 Bash 调支撑脚本与校验器。
+- `pi-agent/skills/golden-solution/SKILL.md` — Skill 主体（角色/输入边界/工作方法/
+  交付要求/内部质量文件/完成闭环）。launcher 同时加载财务报告 Skill，并注入
+  `$GDPVAL_PYTHON` / `$GDPVAL_STAGE3_DIR` / `$GDPVAL_TASKS_DIR` /
+  `$GDPVAL_FINANCIAL_REPORT_SKILL_DIR` / `$GDPVAL_FINANCIAL_TEMPLATE_DIR` /
+  `$TASK_ID`。
 - `render.py` — 黑白渲染器（content.json → docx/xlsx/pptx/md/csv，`_is_grey` 强制去蓝），agent 简单 B/W 路径调用。
 - `preextract_attachments.py` — 附件→文本预览（`golden solution/_extracted/_att_*.txt`），含 GBK/GB18030 自检测。
 - `validate_golden_solution.py` — 确定性校验器（docx/xlsx/pdf/pptx/csv/md + 占位符 + 活公式 + B/W 后置扫描 + manifest 哈希）。

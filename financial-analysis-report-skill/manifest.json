@@ -1,0 +1,16 @@
+{
+  "name": "generating-financial-analysis-reports",
+  "version": "1.0.0",
+  "locale": "zh-CN",
+  "description": "生成严格中英文字体、首行缩进、黑色三线表和自然财务分析语言的 Word 报告。",
+  "entrypoints": {
+    "skill": "SKILL.md",
+    "render": "scripts/render_report.py",
+    "validate": "scripts/validate_report.py",
+    "sample_input": "examples/sample_financial_data.json"
+  },
+  "requires": [
+    "python-docx>=1.1.2",
+    "lxml>=5.0"
+  ]
+}

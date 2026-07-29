@@ -18,15 +18,17 @@ description: 从当前task_NNN工作区的20个金融候选文件中确定专业
 4. 比较至少两个实质不同的职业任务方向。
 5. 调用 `set_task_direction` 保存备选方向、证据范围、主要风险及最终选择理由。
 6. 初选10至17个最终附件，包含核心、辅助和少量合理干扰材料。
-7. 调用 `create_generated_attachment` 创建1至3个确有用途的辅助文件；即使
+7. 调用 `financial_resource_inventory` 查看财务分析报告 Skill 与真实 Word/
+   Excel 模板清单，按题目方向选择适用的结构参考。
+8. 调用 `create_generated_attachment` 创建1至3个确有用途的辅助文件；即使
    原候选材料足够，也必须用生成附件明确任务假设、统一口径或整理来源索引。
-   每个生成附件必须进入最终附件集。
-8. 调用 `assemble_final_attachments` 固化最终附件和选择清单；工具会按最终
+   每个文件必须声明 `templateReference` 和 `designRationale`，并进入最终附件集。
+9. 调用 `assemble_final_attachments` 固化最终附件和选择清单；工具会按最终
    顺序把文件重新编号为 `01__` 至 `NN__`。
-9. 只根据已经固化的附件能力反向设计至少12步的 `workflow.md`。
-10. 再把任务目标压缩为 query“具体任务”中的一个整体叙述段落，不把 workflow
+10. 只根据已经固化的附件能力反向设计至少12步的 `workflow.md`。
+11. 再把任务目标压缩为 query“具体任务”中的一个整体叙述段落，不把 workflow
     步骤复制进 query。
-11. 调用 `finalize_task` 一次性写入 workflow、query、证据矩阵和质量审查，
+12. 调用 `finalize_task` 一次性写入 workflow、query、证据矩阵和质量审查，
     并以外部校验通过作为结束条件。
 
 工具会拒绝越界或顺序错误。遇到工具错误时，根据原始错误修正参数后重试。
@@ -78,7 +80,26 @@ description: 从当前task_NNN工作区的20个金融候选文件中确定专业
 2. 从候选原文整理、并保留 `document_id` 来源的结构化汇编。
 
 生成附件不得伪装成外部出版物，不得计算最终评分、评级、压力测试结果、
-投资结论或管理建议。CSV 的 `payload` 使用：
+投资结论或管理建议。
+
+### 财务 Skill 与模板的使用
+
+launcher 同时加载 `generating-financial-analysis-reports` Skill，并注入：
+
+- `$GDPVAL_FINANCIAL_REPORT_SKILL_DIR`：自然财务写作、Word 格式和三线表规范；
+- `$GDPVAL_FINANCIAL_TEMPLATE_DIR`：六个真实业务模板及
+  `template_manifest.json`。
+
+生成文件前必须调用 `financial_resource_inventory`。每个生成文件选择一个与
+格式兼容的模板 ID，并通过 `designRationale` 说明借鉴了哪些结构，例如说明页、
+口径区、来源索引、方案矩阵、输入/计算分区或报告章节层级。
+
+只能借鉴结构、版式和职业文档习惯；不得复制模板中的企业、项目、数字、公式结果
+或结论。合成文件应有自然文件名、清晰标题、单位/期间/口径、来源说明、合理列宽
+和打印设置，不得表现为未经排版的数据倾倒。报告写作遵循“结论—证据—原因—
+边界—行动”链，但生成附件本身仍不得提前完成答题者的核心分析。
+
+CSV 的 `payload` 使用：
 
 ```json
 {"rows":[["字段1","字段2"],["值1","值2"]]}
@@ -164,6 +185,7 @@ query 必须严格且仅包含以下三个 Markdown 二级标题：
 - 核心事实的页码标题、工作表或抽取行号；
 - 口径冲突、报告期差异和信息缺口；
 - 生成附件的用途和来源。
+- 财务 Skill、模板 ID、适配理由及未复制模板数据的检查。
 
 `qualityReviewMarkdown` 至少检查：
 

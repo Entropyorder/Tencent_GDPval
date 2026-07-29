@@ -26,15 +26,26 @@ export PI_CODING_AGENT_DIR="$WORKFLOW_DIR/pi-agent"
 export PI_OFFLINE=1
 export PI_TELEMETRY=0
 export GDPVAL_PYTHON="$PROJECT_ROOT/.venv/bin/python"
+export GDPVAL_FINANCIAL_REPORT_SKILL_DIR="$PROJECT_ROOT/financial-analysis-report-skill"
+export GDPVAL_FINANCIAL_TEMPLATE_DIR="$PROJECT_ROOT/financial-analysis"
 
 TASKS_DIR="$(cd "$TASKS_DIR" && pwd)"
 TASK_DIR="$TASKS_DIR/task_$TASK_ID"
 LOG_DIR="$TASKS_DIR/logs"
 SKILL_FILE="$WORKFLOW_DIR/pi-agent/skills/gdpval-task-builder/SKILL.md"
+FINANCIAL_SKILL_FILE="$GDPVAL_FINANCIAL_REPORT_SKILL_DIR/SKILL.md"
 EXTENSION_FILE="$WORKFLOW_DIR/pi-agent/extensions/gdpval-tools.ts"
 
 if [[ ! -f "$TASK_DIR/candidate_manifest.json" ]]; then
   echo "task workspace is not prepared: $TASK_DIR" >&2
+  exit 1
+fi
+if [[ ! -f "$FINANCIAL_SKILL_FILE" ]]; then
+  echo "financial report skill is missing: $FINANCIAL_SKILL_FILE" >&2
+  exit 1
+fi
+if [[ ! -f "$GDPVAL_FINANCIAL_TEMPLATE_DIR/template_manifest.json" ]]; then
+  echo "financial template manifest is missing" >&2
   exit 1
 fi
 
@@ -50,11 +61,13 @@ cd "$TASK_DIR"
   --extension "$EXTENSION_FILE" \
   --no-skills \
   --skill "$SKILL_FILE" \
+  --skill "$FINANCIAL_SKILL_FILE" \
+  --append-system-prompt "$FINANCIAL_SKILL_FILE" \
   --no-prompt-templates \
   --provider inferera \
   --model "$INFERERA_MODEL" \
-  --tools "candidate_inventory,read_candidate,search_evidence,set_task_direction,create_generated_attachment,assemble_final_attachments,finalize_task" \
-  "/skill:gdpval-task-builder 执行当前TASK.md对应的完整Stage 2任务。必须从20个候选开始，先确定方向，创建并实际选用1至3个生成附件，固化最终附件，再分别反向编写至少12步的workflow和整体叙述式query，并以finalize_task验收通过结束。" \
+  --tools "candidate_inventory,read_candidate,search_evidence,set_task_direction,financial_resource_inventory,create_generated_attachment,assemble_final_attachments,finalize_task" \
+  "/skill:gdpval-task-builder 执行当前TASK.md对应的完整Stage 2任务。必须从20个候选开始，先确定方向，再查看财务报告Skill和真实模板资源，创建并实际选用1至3个自然、逼真且不泄漏答案的生成附件，固化最终附件，再分别反向编写至少12步的workflow和整体叙述式query，并以finalize_task验收通过结束。" \
   > "$LOG_DIR/task_${TASK_ID}_pi.jsonl" \
   2> "$LOG_DIR/task_${TASK_ID}_pi.stderr.log"
 
