@@ -30,9 +30,9 @@ def load_latest_query_checkpoint(path):
                 continue
             try:
                 record = json.loads(line)
-                source_document_id = record.get("source_document_id")
-                if source_document_id:
-                    latest[source_document_id] = record
+                source_filename = record.get("source_filename")
+                if source_filename:
+                    latest[source_filename] = record
             except json.JSONDecodeError as exc:
                 raise ValueError(
                     f"invalid query checkpoint JSON at line {line_number}: {exc}"
@@ -97,7 +97,14 @@ class QueryProcessor:
                     )
                 ),
             ]
-            extracted = extract_document(path, self.settings.max_input_chars)
+            try:
+                document_content = extract_document(
+                    path, self.settings.max_input_chars
+                ).text
+            except Exception:
+                document_content = (profile.get("summary") or "").strip()
+                if not document_content:
+                    raise
             context = {
                 "forbidden_specific_terms": [
                     term for term in forbidden_specific_terms if term
@@ -105,7 +112,7 @@ class QueryProcessor:
                 "document_type": profile.get("document_type") or "other",
                 "variation_marker": task_id.replace("-", "")[-8:],
             }
-            draft = self.llm_client.generate(context, extracted.text)
+            draft = self.llm_client.generate(context, document_content)
             return QueryRecord(
                 task_id=task_id,
                 query=draft.query,
@@ -146,8 +153,7 @@ def run_query_batch(
     existing = load_latest_query_checkpoint(checkpoint_path)
     pending = []
     for path in files:
-        document_id = processor.catalog[Path(path).name]["document_id"]
-        previous = existing.get(document_id)
+        previous = existing.get(Path(path).name)
         if previous is None or (
             previous.get("generation", {}).get("status") == "success"
             and not previous.get("query")

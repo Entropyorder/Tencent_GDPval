@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from finance_forensics.extractors import (
     extract_doc,
+    extract_document,
     extract_spreadsheet_with_calamine,
     sample_text,
 )
@@ -118,3 +119,32 @@ def test_doc_falls_back_to_catdoc(tmp_path):
         result = extract_doc(path, 30000)
     assert result.method == "catdoc"
     assert "测试公司" in result.text
+
+
+def test_document_sniffs_html_behind_wrong_extension(tmp_path):
+    path = tmp_path / "report.pdf"
+    path.write_text(
+        "<!doctype html><html><head><style>hidden</style></head>"
+        "<body><h1>财务报告</h1><p>经营现金流改善</p></body></html>",
+        encoding="utf-8",
+    )
+
+    result = extract_document(path)
+
+    assert result.method == "html-content-sniff"
+    assert "财务报告" in result.text
+    assert "经营现金流改善" in result.text
+    assert "hidden" not in result.text
+
+
+def test_document_sniffs_legacy_doc_behind_docx_extension(tmp_path):
+    path = tmp_path / "legacy.docx"
+    path.write_bytes(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1fake")
+    expected = MagicMock()
+    with patch(
+        "finance_forensics.extractors.extract_doc", return_value=expected
+    ) as mocked:
+        result = extract_document(path)
+
+    assert result is expected
+    mocked.assert_called_once_with(path, 30000)

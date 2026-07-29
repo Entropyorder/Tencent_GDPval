@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -6,7 +7,12 @@ from pydantic import ValidationError
 from finance_forensics.config import PROMPT_DIR
 from finance_forensics.models import QueryDraft
 from finance_forensics.query_llm import GDPvalQueryClient, normalize_query_payload
-from finance_forensics.query_pipeline import QueryProcessor, task_id_for_document
+from finance_forensics.query_pipeline import (
+    QueryProcessor,
+    finalize_query_checkpoint,
+    load_latest_query_checkpoint,
+    task_id_for_document,
+)
 
 
 def generic_query():
@@ -108,3 +114,33 @@ def test_query_processor_passes_extracted_document_text(tmp_path):
     assert "待核验的事项" in client.document_content
     assert "通用业务主题" not in client.context["forbidden_specific_terms"]
     assert "通用行业" not in client.context["forbidden_specific_terms"]
+
+
+def test_checkpoint_keeps_files_with_duplicate_document_ids(tmp_path):
+    checkpoint = tmp_path / "queries.jsonl"
+    records = [
+        {
+            "task_id": "task-1",
+            "query": "分析第一份材料并形成报告。",
+            "source_document_id": "doc_duplicate",
+            "source_filename": "first.pdf",
+            "generation": {"status": "success"},
+        },
+        {
+            "task_id": "task-2",
+            "query": "分析第二份材料并形成报告。",
+            "source_document_id": "doc_duplicate",
+            "source_filename": "second.pdf",
+            "generation": {"status": "success"},
+        },
+    ]
+    checkpoint.write_text(
+        "\n".join(json.dumps(record, ensure_ascii=False) for record in records),
+        encoding="utf-8",
+    )
+
+    latest = load_latest_query_checkpoint(checkpoint)
+    queries = finalize_query_checkpoint(checkpoint, tmp_path / "queries.json")
+
+    assert set(latest) == {"first.pdf", "second.pdf"}
+    assert len(queries) == 2

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from html.parser import HTMLParser
 from pathlib import Path
 import csv
 import io
@@ -36,6 +37,58 @@ class ExtractionResult:
 
 class ExtractionError(RuntimeError):
     pass
+
+
+class VisibleHTMLParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.chunks = []
+        self.ignored_depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        if tag in {"script", "style", "noscript"}:
+            self.ignored_depth += 1
+        elif not self.ignored_depth and tag in {
+            "br",
+            "div",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "li",
+            "p",
+            "table",
+            "tr",
+        }:
+            self.chunks.append("\n")
+        elif not self.ignored_depth and tag in {"td", "th"}:
+            self.chunks.append("\t")
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if tag in {"script", "style", "noscript"}:
+            self.ignored_depth = max(0, self.ignored_depth - 1)
+        elif not self.ignored_depth and tag in {
+            "div",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "li",
+            "p",
+            "table",
+            "tr",
+        }:
+            self.chunks.append("\n")
+
+    def handle_data(self, data):
+        if not self.ignored_depth and data.strip():
+            self.chunks.append(data.strip())
 
 
 def sample_text(text, max_chars):
@@ -334,9 +387,56 @@ def extract_csv(path, max_chars):
     )
 
 
+def extract_html(path, max_chars):
+    byte_limit = 8 * 1024 * 1024
+    with path.open("rb") as stream:
+        raw = stream.read(byte_limit)
+        has_more = bool(stream.read(1))
+    match = from_bytes(raw).best()
+    if match is None:
+        source = raw.decode("utf-8", errors="replace")
+        encoding = "utf-8-fallback"
+    else:
+        source = str(match)
+        encoding = match.encoding
+
+    parser = VisibleHTMLParser()
+    parser.feed(source)
+    lines = []
+    for line in "".join(parser.chunks).splitlines():
+        normalized = " ".join(line.split())
+        if normalized:
+            lines.append(normalized)
+    text, truncated = sample_text("\n".join(lines), max_chars)
+    return ExtractionResult(
+        text=text,
+        method="html-content-sniff",
+        truncated=truncated or has_more,
+        encoding=encoding,
+        warnings=["文件扩展名与实际 HTML 内容不一致"],
+    )
+
+
+def looks_like_html(prefix):
+    normalized = prefix.lstrip(b"\xef\xbb\xbf\x00 \t\r\n").lower()
+    return any(
+        marker in normalized[:8192]
+        for marker in (b"<!doctype html", b"<html", b"<head", b"<meta")
+    )
+
+
 def extract_document(path, max_chars=30000):
     path = Path(path)
     extension = path.suffix.lower()
+    with path.open("rb") as stream:
+        prefix = stream.read(8192)
+    if extension in {".pdf", ".docx", ".xlsx", ".xls"} and looks_like_html(prefix):
+        return extract_html(path, max_chars)
+    if extension == ".docx" and prefix.startswith(
+        b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+    ):
+        return extract_doc(path, max_chars)
+
     extractors = {
         ".pdf": extract_pdf,
         ".xlsx": extract_xlsx,
