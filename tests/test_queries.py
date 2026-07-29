@@ -79,8 +79,10 @@ def test_query_processor_passes_extracted_document_text(tmp_path):
 
         def __init__(self):
             self.document_content = None
+            self.context = None
 
         def generate(self, context, document_content):
+            self.context = context
             self.document_content = document_content
             return QueryDraft(query="核验材料间的关键事实冲突并形成处置意见。")
 
@@ -93,6 +95,8 @@ def test_query_processor_passes_extracted_document_text(tmp_path):
             source.name: {
                 "document_id": "doc_1234",
                 "document_type": "other",
+                "business_topic": "通用业务主题",
+                "industry": "通用行业",
             }
         },
     )
@@ -102,3 +106,5 @@ def test_query_processor_passes_extracted_document_text(tmp_path):
     assert record.generation.status == "success"
     assert "独特样本" in client.document_content
     assert "待核验的事项" in client.document_content
+    assert "通用业务主题" not in client.context["forbidden_specific_terms"]
+    assert "通用行业" not in client.context["forbidden_specific_terms"]

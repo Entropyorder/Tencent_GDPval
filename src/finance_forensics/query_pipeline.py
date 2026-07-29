@@ -94,9 +94,6 @@ class QueryProcessor:
                         "security_code",
                         "reporting_period",
                         "publish_date",
-                        "business_topic",
-                        "industry",
-                        "market",
                     )
                 ),
             ]
