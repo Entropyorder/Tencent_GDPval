@@ -13,6 +13,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 DEFAULT_EMBEDDING_MODEL = "BAAI/bge-small-zh-v1.5"
 DEFAULT_SEMANTIC_WEIGHT = 0.75
 DEFAULT_KEYWORD_WEIGHT = 0.25
+MAX_ATTACHMENT_FILENAME_BYTES = 240
 
 
 def load_queries(path):
@@ -38,6 +39,21 @@ def load_document_catalog(path):
     ]
 
 
+def bounded_attachment_filename(stem, suffix, retained_suffix=""):
+    filename = f"{stem}{suffix}"
+    if len(filename.encode("utf-8")) <= MAX_ATTACHMENT_FILENAME_BYTES:
+        return filename
+
+    tail = f"{retained_suffix}{suffix}"
+    stem_budget = MAX_ATTACHMENT_FILENAME_BYTES - len(tail.encode("utf-8"))
+    if stem_budget < 1:
+        raise ValueError(f"file suffix is too long: {tail}")
+    truncated_stem = (
+        stem.encode("utf-8")[:stem_budget].decode("utf-8", errors="ignore")
+    ).rstrip(" ._")
+    return f"{truncated_stem or 'document'}{tail}"
+
+
 def catalog_attachment_filename(record, used_names=None):
     filename = record.get("suggested_filename") or record["source_filename"]
     if not isinstance(filename, str) or not filename.strip():
@@ -48,16 +64,32 @@ def catalog_attachment_filename(record, used_names=None):
     if Path(filename).name != filename or filename in {".", ".."}:
         raise ValueError(f"unsafe catalog filename: {filename}")
 
+    path = Path(filename)
+    document_id = str(record.get("document_id") or "duplicate").removeprefix("doc_")
+    filename = bounded_attachment_filename(
+        path.stem,
+        path.suffix,
+        retained_suffix=f"_doc_{document_id[:8]}",
+    )
     used_names = used_names if used_names is not None else set()
     if filename not in used_names:
         return filename
 
     path = Path(filename)
-    document_id = str(record.get("document_id") or "duplicate").removeprefix("doc_")
-    candidate = f"{path.stem}_{document_id[:8]}{path.suffix}"
+    retained_suffix = f"_{document_id[:8]}"
+    candidate = bounded_attachment_filename(
+        f"{path.stem}{retained_suffix}",
+        path.suffix,
+        retained_suffix=retained_suffix,
+    )
     counter = 2
     while candidate in used_names:
-        candidate = f"{path.stem}_{document_id[:8]}_{counter}{path.suffix}"
+        retained_suffix = f"_{document_id[:8]}_{counter}"
+        candidate = bounded_attachment_filename(
+            f"{path.stem}{retained_suffix}",
+            path.suffix,
+            retained_suffix=retained_suffix,
+        )
         counter += 1
     return candidate
 
@@ -116,6 +148,26 @@ def combine_retrieval_scores(
         semantic_weight * minmax(semantic_values)
         + keyword_weight * minmax(keyword_values)
     )
+
+
+def rank_unique_documents(records, scores, top_k):
+    order = np.argsort(-np.asarray(scores), kind="stable")
+    selected = []
+    seen_document_ids = set()
+    for record_index in order:
+        document_id = records[int(record_index)]["document_id"]
+        if document_id in seen_document_ids:
+            continue
+        seen_document_ids.add(document_id)
+        selected.append(int(record_index))
+        if len(selected) == top_k:
+            break
+    if len(selected) < top_k:
+        raise ValueError(
+            f"catalog contains only {len(selected)} unique documents; "
+            f"cannot return Top {top_k}"
+        )
+    return np.asarray(selected, dtype=int)
 
 
 def load_or_create_document_embeddings(
@@ -279,7 +331,7 @@ def retrieve_attachments(
             semantic_weight=semantic_weight,
             keyword_weight=keyword_weight,
         )
-        order = np.argsort(-final_scores, kind="stable")[:top_k]
+        order = rank_unique_documents(records, final_scores, top_k)
 
         query_dir = output_dir / f"query_{query_index:03d}"
         files_dir = query_dir / "files"

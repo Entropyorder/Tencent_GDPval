@@ -131,6 +131,29 @@ finance-forensics run --workers 4
   --output-dir output/stage1_query_retrieval_full
 ```
 
+从全量 query 中按语义多样性随机抽样，再为每条检索 Top 20：
+
+```bash
+.venv/bin/python workflows/stage1_query_retrieval/select_diverse_queries.py \
+  --input output/queries_satge1/full_corpus/queries.json \
+  --output output/stage1_query_retrieval_200/queries.json \
+  --manifest output/stage1_query_retrieval_200/selection_manifest.json \
+  --count 200 \
+  --seed 20260729
+
+.venv/bin/python workflows/stage1_query_retrieval/run.py \
+  --queries output/stage1_query_retrieval_200/queries.json \
+  --catalog output/catalog/catalog/document_catalog.json \
+  --input-dir data/unzip_202607282110_source_documents/source_documents \
+  --output-dir output/stage1_query_retrieval_200 \
+  --workers 100 \
+  --resume
+```
+
+抽样使用固定随机种子和随机化最远点算法，在保留随机性的同时降低所选
+query 之间的语义相似度。检索结果会按内容 `document_id` 去重，保证每组
+包含 20 份不同文档。
+
 输出：
 
 ```text

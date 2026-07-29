@@ -9,6 +9,7 @@ from finance_forensics.retrieval import (
     combine_retrieval_scores,
     load_queries,
     minmax,
+    rank_unique_documents,
 )
 
 
@@ -62,6 +63,19 @@ def test_catalog_attachment_filename_uses_suggested_name_and_disambiguates():
     ) == "测试公司_年度报告_2025_doc_12345678_12345678.pdf"
 
 
+def test_catalog_attachment_filename_limits_utf8_bytes_and_keeps_identity():
+    record = {
+        "document_id": "doc_1234567890abcdef",
+        "source_filename": "001_source.docx",
+        "suggested_filename": f"{'超长机构名称' * 30}_政策文件.docx",
+    }
+
+    filename = catalog_attachment_filename(record)
+
+    assert len(filename.encode("utf-8")) <= 240
+    assert filename.endswith("_doc_12345678.docx")
+
+
 def test_combined_score_uses_only_semantic_and_keyword_signals():
     scores = combine_retrieval_scores(
         np.array([0.2, 0.4, 0.6]),
@@ -70,6 +84,23 @@ def test_combined_score_uses_only_semantic_and_keyword_signals():
         keyword_weight=0.25,
     )
     assert np.allclose(scores, [0.25, 0.4464286, 0.75])
+
+
+def test_rank_unique_documents_skips_duplicate_content_ids():
+    records = [
+        {"document_id": "doc_a"},
+        {"document_id": "doc_a"},
+        {"document_id": "doc_b"},
+        {"document_id": "doc_c"},
+    ]
+
+    order = rank_unique_documents(
+        records,
+        scores=np.array([0.9, 0.8, 0.7, 0.6]),
+        top_k=3,
+    )
+
+    assert order.tolist() == [0, 2, 3]
 
 
 def test_minmax_normalizes_scores():

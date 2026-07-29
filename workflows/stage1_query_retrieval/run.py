@@ -74,7 +74,17 @@ def retrieval_is_valid(path, expected_count):
     retrieval = payload.get("retrieval", {})
     return (
         len(queries) == expected_count
-        and all(len(query.get("results", [])) == 20 for query in queries)
+        and all(
+            len(query.get("results", [])) == 20
+            and len(
+                {
+                    result.get("document_id")
+                    for result in query.get("results", [])
+                }
+            )
+            == 20
+            for query in queries
+        )
         and retrieval.get("semantic_input") == "raw_query_to_catalog_summary"
         and retrieval.get("keyword_method")
         == "llm_keywords_to_catalog_profile_char_tfidf_2_4gram"
